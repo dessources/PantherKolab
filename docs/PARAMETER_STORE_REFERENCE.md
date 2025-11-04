@@ -56,6 +56,15 @@ All dev-specific parameters are under `/panther-kolab/dev/`
 | ------------------------------------------------ | ------------ | ---------------------------------- |
 | `/panther-kolab/dev/appsync-events/api-key`      | SecureString | AppSync API key for backend        |
 
+#### Chime SDK Configuration
+
+| Parameter Path                                   | Type   | Description                             |
+| ------------------------------------------------ | ------ | --------------------------------------- |
+| `/panther-kolab/dev/chime/max-attendees`         | String | Maximum attendees per meeting (default: 100) |
+| `/panther-kolab/dev/chime/endpoint`              | String | Chime SDK endpoint URL (optional)       |
+
+**Note:** Chime SDK uses the same AWS credentials (`aws_access_key_id` and `aws_secret_access_key`) as other services.
+
 ---
 
 ## Usage in Code

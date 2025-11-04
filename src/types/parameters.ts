@@ -9,27 +9,37 @@
  */
 export type ParameterKey =
   // AWS Configuration
-  | 'aws-region'
+  | "aws-region"
 
   // Cognito Parameters
-  | 'cognito/user-pool-id'
-  | 'cognito/client-id'
-  | 'cognito/domain'
+  | "cognito/user-pool-id"
+  | "cognito/client-id"
+  | "cognito/domain"
 
   // DynamoDB Tables
-  | 'dynamodb/users-table'
-  | 'dynamodb/conversations-table'
-  | 'dynamodb/messages-table'
-  | 'dynamodb/groups-table'
+  | "dynamodb/users-table"
+  | "dynamodb/conversations-table"
+  | "dynamodb/messages-table"
+  | "dynamodb/groups-table"
+
+  // DynamoDB Tables (Chime)
+  | "dynamodb/meetings-table"
+  | "dynamodb/call-sessions-table"
+  | "dynamodb/meeting-invites-table"
+  | "dynamodb/meeting-attendees-table"
 
   // Application URLs
-  | 'app-urls/redirect-sign-in'
-  | 'app-urls/redirect-sign-out'
+  | "app-urls/redirect-sign-in"
+  | "app-urls/redirect-sign-out"
+
+  //Chime config
+  | "chime/max-attendees"
+  | "chime/endpoint"
 
   // AppSync (GraphQL)
-  | 'appsync/graphql-endpoint'
-  | 'appsync/api-key'
-  | 'appsync/region';
+  | "appsync/graphql-endpoint"
+  | "appsync/api-key"
+  | "appsync/region";
 
 /**
  * Parameter value type
@@ -37,7 +47,7 @@ export type ParameterKey =
 export interface Parameter {
   key: ParameterKey;
   value: string;
-  type: 'String' | 'SecureString';
+  type: "String" | "SecureString";
   lastFetched: Date;
 }
 
@@ -51,7 +61,7 @@ export type ParameterCache = Partial<Record<ParameterKey, Parameter>>;
  */
 export interface ParameterStoreConfig {
   region: string;
-  environment: 'dev' | 'staging' | 'prod';
+  environment: "dev" | "staging" | "prod";
   prefix: string; // e.g., '/panther-kolab'
 
   // Authentication - only access key/secret needed
@@ -83,6 +93,6 @@ export class ParameterStoreError extends Error {
     public parameterKey?: ParameterKey
   ) {
     super(message);
-    this.name = 'ParameterStoreError';
+    this.name = "ParameterStoreError";
   }
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { LoginForm } from "@/components/auth/Login/LoginForm";
 import * as authStyles from "@/components/auth/auth.style";
 export function Login({}) {
   return (
@@ -14,9 +14,6 @@ export function Login({}) {
         </div>
       </div>
 
-      {/* <div className="w-[513px] h-12 left-[27px] top-[20px] absolute justify-start text-white text-4xl font-bold font-['Bitter']">
-       PantherKolab
-      </div> */}
       <div
         className={`absolute left-0 top-1/2 -translate-y-1/2 w-[calc(50%)})] flex items-center justify-center`}
       >

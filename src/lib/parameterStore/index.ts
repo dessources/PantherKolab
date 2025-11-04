@@ -9,15 +9,15 @@
  *   const value = await client.getParameter('cognito/user-pool-id');
  */
 
-import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import type {
   ParameterKey,
   Parameter,
   ParameterCache,
   ParameterStoreConfig,
   ParameterFetchOptions,
-} from '@/types/parameters';
-import { ParameterStoreError } from '@/types/parameters';
+} from "@/types/parameters";
+import { ParameterStoreError } from "@/types/parameters";
 
 /**
  * Singleton Parameter Store Client
@@ -59,7 +59,9 @@ export class ParameterStoreClient {
       },
     });
 
-    console.log(`[ParameterStore] Initialized for environment: ${config.environment}`);
+    console.log(
+      `[ParameterStore] Initialized for environment: ${config.environment}`
+    );
   }
 
   /**
@@ -68,8 +70,8 @@ export class ParameterStoreClient {
   private ensureInitialized(): void {
     if (!this.ssmClient || !this.config) {
       throw new ParameterStoreError(
-        'ParameterStoreClient not initialized. Call initialize() first.',
-        'NOT_INITIALIZED'
+        "ParameterStoreClient not initialized. Call initialize() first.",
+        "NOT_INITIALIZED"
       );
     }
   }
@@ -79,7 +81,7 @@ export class ParameterStoreClient {
    */
   private buildParameterPath(key: ParameterKey): string {
     if (!this.config) {
-      throw new ParameterStoreError('Configuration not set', 'NO_CONFIG');
+      throw new ParameterStoreError("Configuration not set", "NO_CONFIG");
     }
     return `${this.config.prefix}/${this.config.environment}/${key}`;
   }
@@ -104,6 +106,7 @@ export class ParameterStoreClient {
     const parameterPath = this.buildParameterPath(key);
 
     try {
+      console.log(parameterPath);
       const command = new GetParameterCommand({
         Name: parameterPath,
         WithDecryption: withDecryption,
@@ -114,7 +117,7 @@ export class ParameterStoreClient {
       if (!response.Parameter || !response.Parameter.Value) {
         throw new ParameterStoreError(
           `Parameter not found: ${parameterPath}`,
-          'PARAMETER_NOT_FOUND',
+          "PARAMETER_NOT_FOUND",
           key
         );
       }
@@ -122,7 +125,7 @@ export class ParameterStoreClient {
       const parameter: Parameter = {
         key,
         value: response.Parameter.Value,
-        type: response.Parameter.Type as 'String' | 'SecureString',
+        type: response.Parameter.Type as "String" | "SecureString",
         lastFetched: new Date(),
       };
 
@@ -131,20 +134,22 @@ export class ParameterStoreClient {
 
       console.log(`[ParameterStore] Fetched: ${key}`);
       return parameter;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // Handle AWS SDK errors
-      if (error.name === 'ParameterNotFound') {
+      if (error.name === "ParameterNotFound") {
         throw new ParameterStoreError(
           `Parameter not found in AWS: ${parameterPath}`,
-          'PARAMETER_NOT_FOUND',
+          "PARAMETER_NOT_FOUND",
           key
         );
       }
 
-      if (error.name === 'AccessDeniedException') {
+      if (error.name === "AccessDeniedException") {
+        console.log(error.message);
         throw new ParameterStoreError(
           `Access denied for parameter: ${parameterPath}. Check IAM permissions.`,
-          'ACCESS_DENIED',
+          "ACCESS_DENIED",
           key
         );
       }
@@ -156,7 +161,7 @@ export class ParameterStoreClient {
       // Generic error
       throw new ParameterStoreError(
         `Failed to fetch parameter ${key}: ${error.message}`,
-        'FETCH_ERROR',
+        "FETCH_ERROR",
         key
       );
     }
@@ -173,7 +178,11 @@ export class ParameterStoreClient {
     key: ParameterKey,
     options: ParameterFetchOptions = {}
   ): Promise<string> {
-    const { refresh = false, ttl = this.DEFAULT_TTL, withDecryption = true } = options;
+    const {
+      refresh = false,
+      ttl = this.DEFAULT_TTL,
+      withDecryption = true,
+    } = options;
 
     // Check cache first
     const cached = this.cache[key];
@@ -217,7 +226,7 @@ export class ParameterStoreClient {
       console.log(`[ParameterStore] Cleared cache for: ${key}`);
     } else {
       this.cache = {};
-      console.log('[ParameterStore] Cleared all cache');
+      console.log("[ParameterStore] Cleared all cache");
     }
   }
 
@@ -230,9 +239,12 @@ export class ParameterStoreClient {
     oldestEntry: Date | null;
   } {
     const keys = Object.keys(this.cache) as ParameterKey[];
-    const oldestEntry = keys.length > 0
-      ? new Date(Math.min(...keys.map(k => this.cache[k]!.lastFetched.getTime())))
-      : null;
+    const oldestEntry =
+      keys.length > 0
+        ? new Date(
+            Math.min(...keys.map((k) => this.cache[k]!.lastFetched.getTime()))
+          )
+        : null;
 
     return {
       size: keys.length,
@@ -251,15 +263,16 @@ export class ParameterStoreClient {
   /**
    * Get current configuration (without sensitive data)
    */
-  public getConfig(): Omit<ParameterStoreConfig, 'accessKeyId' | 'secretAccessKey'> | null {
+  public getConfig(): Omit<
+    ParameterStoreConfig,
+    "accessKeyId" | "secretAccessKey"
+  > | null {
     if (!this.config) return null;
 
     return {
       region: this.config.region,
       environment: this.config.environment,
       prefix: this.config.prefix,
-      accessKeyId: '***',
-      secretAccessKey: '***',
     };
   }
 }
@@ -267,4 +280,14 @@ export class ParameterStoreClient {
 /**
  * Export singleton instance
  */
-export const parameterStore = ParameterStoreClient.getInstance();
+
+const instance = ParameterStoreClient.getInstance();
+instance.initialize({
+  region: process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1",
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  environment: process.env.NODE_ENV == "production" ? "prod" : "dev",
+  prefix: "/panther-kolab",
+});
+
+export const parameterStore = instance;

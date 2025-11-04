@@ -228,7 +228,7 @@ Each team member gets their own IAM user:
 
 Create a separate IAM user:
 
-- Username: `panther-code-user`
+- Username: `panther-kolab-dev`
 - Same policy as above
 - Add credentials to GitHub Secrets or CI/CD environment
 

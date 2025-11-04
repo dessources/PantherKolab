@@ -150,6 +150,142 @@ export interface CreateGroupInput {
 }
 
 /**
+ * Meeting (Chime)
+ * Table: PantherKolab-Meetings-{env}
+ * Primary Key: meetingId
+ * For scheduled virtual meetings
+ */
+export interface Meeting {
+  meetingId: string              // UUID - Partition key
+  chimeMeetingId: string | null  // Chime SDK meeting ID (set when meeting starts)
+  title: string                  // Meeting title
+  description: string | null     // Meeting description
+  creatorId: string              // User who created the meeting
+  scheduledTime: string          // ISO timestamp - Sort key in CreatorIndex
+  startTime: string | null       // Actual start time
+  endTime: string | null         // Actual end time
+  duration: number | null        // Duration in seconds
+  status: MeetingStatus          // Current status
+  accessType: MeetingAccessType  // Public vs restricted access
+  invitedUserIds: string[]       // List of invited users (empty if public)
+  conversationId: string | null  // Associated conversation (if any)
+  maxAttendees: number           // Maximum number of attendees
+  settings: MeetingSettings      // Meeting configuration
+  createdAt: string              // ISO timestamp
+  updatedAt: string              // ISO timestamp
+}
+
+export type MeetingStatus = 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'CANCELLED'
+export type MeetingAccessType = 'PUBLIC' | 'RESTRICTED' | 'CONVERSATION'
+
+export interface MeetingSettings {
+  allowCamera: boolean           // Allow video
+  allowMicrophone: boolean       // Allow audio
+  allowScreenShare: boolean      // Allow screen sharing
+  recordingEnabled: boolean      // Enable recording
+  waitingRoomEnabled: boolean    // Enable waiting room for restricted meetings
+}
+
+/**
+ * Call Session (Chime)
+ * Table: PantherKolab-CallSessions-{env}
+ * Primary Key: sessionId (PK) + timestamp (SK)
+ * For direct 1-on-1 and group calls
+ */
+export interface CallSession {
+  sessionId: string              // UUID - Partition key
+  timestamp: string              // ISO timestamp - Sort key
+  chimeMeetingId: string         // Chime SDK meeting ID
+  callType: CallType             // Direct or group call
+  conversationId: string         // Associated conversation
+  initiatorId: string            // User who started the call
+  participants: CallParticipant[] // All participants
+  status: CallStatus             // Current status
+  startedAt: string              // When call started
+  endedAt: string | null         // When call ended
+  duration: number | null        // Duration in seconds
+  endReason: CallEndReason | null // Why call ended
+  createdAt: string              // ISO timestamp
+}
+
+export type CallType = 'DIRECT' | 'GROUP'
+export type CallStatus = 'RINGING' | 'ACTIVE' | 'ENDED' | 'MISSED' | 'DECLINED' | 'FAILED'
+export type CallEndReason = 'COMPLETED' | 'DECLINED' | 'MISSED' | 'FAILED' | 'CANCELLED' | 'TIMEOUT'
+
+export interface CallParticipant {
+  userId: string                 // Participant user ID
+  joinedAt: string | null        // When they joined
+  leftAt: string | null          // When they left
+  status: ParticipantStatus      // Current status
+  chimeAttendeeId: string | null // Chime attendee ID
+}
+
+export type ParticipantStatus = 'INVITED' | 'RINGING' | 'JOINED' | 'LEFT' | 'DECLINED'
+
+/**
+ * Meeting Invite (Chime)
+ * Table: PantherKolab-MeetingInvites-{env}
+ * Primary Key: inviteId
+ * For managing meeting invitations
+ */
+export interface MeetingInvite {
+  inviteId: string               // UUID - Partition key
+  meetingId: string              // Meeting being invited to
+  inviteeId: string              // User being invited
+  invitedBy: string              // User who sent invite
+  status: InviteStatus           // Current status
+  sentAt: string                 // ISO timestamp
+  respondedAt: string | null     // When user responded
+  message: string | null         // Optional invitation message
+  createdAt: string              // ISO timestamp
+}
+
+export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'
+
+/**
+ * Meeting Attendee (Chime)
+ * Table: PantherKolab-MeetingAttendees-{env}
+ * Primary Key: attendeeId
+ * For tracking who joined meetings
+ */
+export interface MeetingAttendee {
+  attendeeId: string             // UUID - Partition key
+  meetingId: string              // Meeting attended
+  userId: string                 // User who attended
+  chimeAttendeeId: string        // Chime SDK attendee ID
+  joinedAt: string               // When they joined
+  leftAt: string | null          // When they left
+  duration: number | null        // Duration in seconds
+  wasInvited: boolean            // Whether they were invited
+  createdAt: string              // ISO timestamp
+}
+
+/**
+ * Create Meeting Input
+ */
+export interface CreateMeetingInput {
+  title: string
+  description?: string
+  creatorId: string
+  scheduledTime: string
+  accessType: MeetingAccessType
+  invitedUserIds?: string[]
+  conversationId?: string
+  maxAttendees?: number
+  settings?: Partial<MeetingSettings>
+}
+
+/**
+ * Create Call Session Input
+ */
+export interface CreateCallSessionInput {
+  callType: CallType
+  conversationId: string
+  initiatorId: string
+  participantIds: string[]
+}
+
+/**
  * Database Table Names
  */
 export const TABLE_NAMES = {
@@ -157,6 +293,10 @@ export const TABLE_NAMES = {
   CONVERSATIONS: process.env.DYNAMODB_CONVERSATIONS_TABLE || 'PantherKolab-Conversations-dev',
   MESSAGES: process.env.DYNAMODB_MESSAGES_TABLE || 'PantherKolab-Messages-dev',
   GROUPS: process.env.DYNAMODB_GROUPS_TABLE || 'PantherKolab-Groups-dev',
+  MEETINGS: process.env.DYNAMODB_MEETINGS_TABLE || 'PantherKolab-Meetings-dev',
+  CALL_SESSIONS: process.env.DYNAMODB_CALL_SESSIONS_TABLE || 'PantherKolab-CallSessions-dev',
+  MEETING_INVITES: process.env.DYNAMODB_MEETING_INVITES_TABLE || 'PantherKolab-MeetingInvites-dev',
+  MEETING_ATTENDEES: process.env.DYNAMODB_MEETING_ATTENDEES_TABLE || 'PantherKolab-MeetingAttendees-dev',
 } as const
 
 /**
@@ -172,5 +312,19 @@ export const INDEX_NAMES = {
   },
   GROUPS: {
     CLASS_CODE: 'ClassCodeIndex',
+  },
+  MEETINGS: {
+    CREATOR: 'CreatorIndex',
+  },
+  CALL_SESSIONS: {
+    PARTICIPANT: 'ParticipantIndex',
+  },
+  MEETING_INVITES: {
+    MEETING: 'MeetingIndex',
+    INVITEE: 'InviteeIndex',
+  },
+  MEETING_ATTENDEES: {
+    MEETING: 'MeetingIndex',
+    USER: 'UserIndex',
   },
 } as const
