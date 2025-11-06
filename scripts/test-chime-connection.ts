@@ -128,7 +128,7 @@ async function testChimeConnection() {
         });
         await chimeClient.send(cleanupCommand);
         console.log("   ✅ Test meeting cleaned up\n");
-      } catch (cleanupError) {
+      } catch {
         console.log(
           "   ⚠️  Could not clean up test meeting (may require manual deletion)\n"
         );

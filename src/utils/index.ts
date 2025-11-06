@@ -1,5 +1,3 @@
-import { parameterStore } from "@/lib/parameterStore";
+export const CHIME_MAX_ATTENDEES = 100;
 
-export const CHIME_MAX_ATTENDEES = await parameterStore.getParameter(
-  "chime/max-attendees"
-); //default 100
+export const PARAMETER_STORE_PREFIX = "/panther-kolab";

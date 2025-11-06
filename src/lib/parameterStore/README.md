@@ -276,24 +276,37 @@ console.log(params['cognito/client-id']);
 
 ## Available Parameters
 
-See all available parameters in [`src/types/parameters.ts`](../../types/parameters.ts):
+See all available parameters in [`src/types/parameters.ts`](../../types/parameters.ts).
+
+### Public Parameters (Safe for Browser)
 
 ```typescript
-type ParameterKey =
-  | 'aws-region'
-  | 'cognito/user-pool-id'
-  | 'cognito/client-id'
-  | 'cognito/domain'
-  | 'dynamodb/users-table'
-  | 'dynamodb/conversations-table'
-  | 'dynamodb/messages-table'
-  | 'dynamodb/groups-table'
-  | 'app-urls/redirect-sign-in'
-  | 'app-urls/redirect-sign-out'
-  | 'appsync/graphql-endpoint'
-  | 'appsync/api-key'
-  | 'appsync/region';
+'cognito/user-pool-id'
+'cognito/client-id'
+'cognito/domain'
+'dynamodb/users-table'
+'dynamodb/conversations-table'
+'dynamodb/messages-table'
+'dynamodb/groups-table'
+'dynamodb/meetings-table'
+'dynamodb/call-sessions-table'
+'dynamodb/meeting-invites-table'
+'dynamodb/meeting-attendees-table'
+'app-urls/redirect-sign-in'
+'app-urls/redirect-sign-out'
+'appsync/graphql-endpoint'
+'appsync/region'
+'chime/max-attendees'
+'chime/endpoint'
 ```
+
+### Secure Parameters (Server-Only)
+
+```typescript
+'appsync/api-key'  // ❌ Blocked in browser - use API endpoint instead
+```
+
+Attempting to access secure parameters in client code will throw an error with helpful guidance.
 
 ## Error Handling
 
@@ -312,12 +325,27 @@ function MyComponent() {
     if (error.code === 'ACCESS_DENIED') {
       return <div>Access denied. Check IAM permissions.</div>;
     }
+    if (error.code === 'SECURE_PARAMETER_ACCESS_DENIED') {
+      return <div>Cannot access secure parameters in browser. Use an API endpoint instead.</div>;
+    }
     return <div>Error: {error.message}</div>;
   }
 
   return <div>Value: {value}</div>;
 }
 ```
+
+### Secure Parameter Error
+
+If you attempt to access a secure parameter in client code:
+
+```typescript
+const { value } = useParameter('appsync/api-key');
+// Throws ParameterStoreError with code: SECURE_PARAMETER_ACCESS_DENIED
+// Message: "Access denied: 'appsync/api-key' is a secure parameter and cannot be accessed in browser code. Use an API endpoint instead to fetch this value server-side."
+```
+
+**Solution**: Access the secret only in API routes and pass safe data to the client.
 
 ## Debugging
 
@@ -352,15 +380,50 @@ console.log('Prefix:', config?.prefix);
 // Note: accessKeyId and secretAccessKey are masked as '***'
 ```
 
-## Security Best Practices
+## Security Architecture
+
+### Parameter Classification
+
+Parameters are classified into two categories for security:
+
+**Public Parameters** (Safe for browser):
+- Configuration values like table names, endpoint URLs
+- Cognito IDs (sent to browser anyway)
+- Non-sensitive application settings
+- Accessible via `useParameter()` hook in client code
+
+**Secure Parameters** (Server-only):
+- API keys, tokens, secrets
+- Blocked from browser access with runtime error
+- Only accessible in API routes and server-side code
+- Require SecureString type in AWS Parameter Store
+
+See [Security Parameters Documentation](../../docs/SECURITY_PARAMETERS.md) for detailed information.
+
+### Runtime Security Checks
+
+The `ParameterStoreContext` enforces security at runtime:
+
+```typescript
+// ✅ Allowed - Public parameter in client code
+const { value } = useParameter('cognito/user-pool-id');
+
+// ❌ Blocked - Secure parameter in client code
+const { value } = useParameter('appsync/api-key');
+// Throws: Access denied - secure parameter cannot be accessed in browser code
+```
+
+### Security Best Practices
 
 1. **Never commit access keys** to git
 2. **Use environment variables** for credentials
 3. **Create separate IAM users** for each team member
 4. **Use least privilege** IAM policies
 5. **Rotate access keys** regularly
-6. **Mark sensitive parameters** as SecureString in AWS
+6. **Mark all secrets as SecureString** in AWS Parameter Store
 7. **Use different prefixes** for dev/staging/prod
+8. **Only access secrets in API routes** - never in client components
+9. **Use in-memory caching** via Parameter Store singleton (5-min default TTL)
 
 ## Performance
 

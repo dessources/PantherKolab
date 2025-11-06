@@ -37,9 +37,9 @@ export type ParameterKey =
   | "chime/endpoint"
 
   // AppSync (GraphQL)
-  | "appsync/graphql-endpoint"
-  | "appsync/api-key"
-  | "appsync/region";
+  | "appsync/panther-kolab-chats/api-id"
+  | "appsync/panther-kolab-chats/realtime-api-url"
+  | "appsync/panther-kolab-chats/http-api-url";
 
 /**
  * Parameter value type
@@ -50,6 +50,51 @@ export interface Parameter {
   type: "String" | "SecureString";
   lastFetched: Date;
 }
+
+/**
+ * Public parameters that are safe to expose to browser
+ * These are typically non-sensitive configuration values
+ */
+export const PUBLIC_PARAMETERS = new Set<ParameterKey>([
+  // Cognito - publicly accessible
+  "cognito/user-pool-id",
+  "cognito/client-id",
+  "cognito/domain",
+
+  // DynamoDB table names - not sensitive
+  "dynamodb/users-table",
+  "dynamodb/conversations-table",
+  "dynamodb/messages-table",
+  "dynamodb/groups-table",
+  "dynamodb/meetings-table",
+  "dynamodb/call-sessions-table",
+  "dynamodb/meeting-invites-table",
+  "dynamodb/meeting-attendees-table",
+
+  // App URLs - public
+  "app-urls/redirect-sign-in",
+  "app-urls/redirect-sign-out",
+
+  // AppSync endpoint - public
+  "/appsync/panther-kolab-chats/realtime-api-url",
+  "/appsync/panther-kolab-chats/http-api-url",
+
+  // Chime config - public
+  "chime/max-attendees",
+  "chime/endpoint",
+]);
+
+/**
+ * Secure parameters that should NEVER be exposed to browser
+ * These require SecureString type in Parameter Store
+ */
+export const SECURE_PARAMETERS = new Set<ParameterKey>([
+  // AppSync API key - SECRET
+  "appsync/panther-kolab-chats/api-id",
+
+  // Any other secrets would go here
+  // AWS credentials, API keys, tokens, etc.
+]);
 
 /**
  * Parameter cache structure

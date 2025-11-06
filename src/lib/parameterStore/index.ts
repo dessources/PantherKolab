@@ -18,6 +18,7 @@ import type {
   ParameterFetchOptions,
 } from "@/types/parameters";
 import { ParameterStoreError } from "@/types/parameters";
+import { PARAMETER_STORE_PREFIX } from "@/utils";
 
 /**
  * Singleton Parameter Store Client
@@ -287,7 +288,7 @@ instance.initialize({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   environment: process.env.NODE_ENV == "production" ? "prod" : "dev",
-  prefix: "/panther-kolab",
+  prefix: PARAMETER_STORE_PREFIX,
 });
 
 export const parameterStore = instance;

@@ -19,7 +19,7 @@ import type {
   ParameterFetchOptions,
   ParameterStoreConfig,
 } from "@/types/parameters";
-import { ParameterStoreError } from "@/types/parameters";
+import { ParameterStoreError, PUBLIC_PARAMETERS, SECURE_PARAMETERS } from "@/types/parameters";
 
 interface ParameterStoreContextValue {
   /** Get a parameter value */
@@ -142,6 +142,28 @@ export function ParameterStoreProvider({
           "NOT_INITIALIZED"
         );
       }
+
+      // Security check: Prevent accessing secure parameters in client code
+      if (SECURE_PARAMETERS.has(key)) {
+        const error = new ParameterStoreError(
+          `Access denied: '${key}' is a secure parameter and cannot be accessed in browser code. ` +
+          `Use an API endpoint instead to fetch this value server-side.`,
+          "SECURE_PARAMETER_ACCESS_DENIED",
+          key
+        );
+        console.error(
+          `[ParameterStore] Security violation: Attempted to access secure parameter '${key}' in client code`
+        );
+        throw error;
+      }
+
+      // Warning log (don't expose parameter value, only key)
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[ParameterStore] Fetching parameter: ${key} (public parameter)`
+        );
+      }
+
       return parameterStore.getParameter(key, options);
     },
     [isInitialized]
@@ -158,6 +180,28 @@ export function ParameterStoreProvider({
           "NOT_INITIALIZED"
         );
       }
+
+      // Security check: Prevent accessing secure parameters in client code
+      const secureKeysRequested = keys.filter((key) => SECURE_PARAMETERS.has(key));
+      if (secureKeysRequested.length > 0) {
+        const error = new ParameterStoreError(
+          `Access denied: The following parameters are secure and cannot be accessed in browser code: ${secureKeysRequested.join(", ")}. ` +
+          `Use API endpoints instead to fetch these values server-side.`,
+          "SECURE_PARAMETER_ACCESS_DENIED"
+        );
+        console.error(
+          `[ParameterStore] Security violation: Attempted to access secure parameters in client code: ${secureKeysRequested.join(", ")}`
+        );
+        throw error;
+      }
+
+      // Warning log (don't expose parameter values, only keys)
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[ParameterStore] Fetching ${keys.length} parameters (all public)`
+        );
+      }
+
       return parameterStore.getParameters(keys, options);
     },
     [isInitialized]

@@ -447,3 +447,88 @@ export function RobustParameterComponent() {
 
   return <div>Value: {value}</div>;
 }
+
+// ============================================
+// EXAMPLE 10: Security - Public vs Secure Parameters
+// ============================================
+
+// ✅ ALLOWED - Client code accessing public parameter
+/*
+'use client';
+
+export function AllowedPublicAccess() {
+  const { value: poolId } = useParameter('cognito/user-pool-id');
+  return <div>Pool: {poolId}</div>;
+}
+*/
+
+// ❌ NOT ALLOWED - Client code accessing secure parameter
+// This will throw an error at runtime
+/*
+'use client';
+
+export function BlockedSecureAccess() {
+  // This throws: "Access denied: '/appsync/panther-kolab-chats/api-id' is a secure parameter
+  // and cannot be accessed in browser code"
+  // const { value: apiKey } = useParameter('/appsync/panther-kolab-chats/api-id');
+}
+*/
+
+// ✅ CORRECT - Server-side access to secure parameters
+// src/app/api/config/appsync/route.ts
+/*
+import { parameterStore } from '@/lib/parameterStore';
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  try {
+    // Safe: Server-side access to secret
+    const secret = await parameterStore.getParameter('/appsync/panther-kolab-chats/api-id');
+
+    // Use the secret server-side, never expose it to client
+    // For example, authenticate with AppSync
+    // const apolloClient = new ApolloClient({
+    //   defaultOptions: { headers: { authorization: secret } }
+    // });
+
+    // Return only safe data to client
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to process request' },
+      { status: 500 }
+    );
+  }
+}
+*/
+
+// ============================================
+// EXAMPLE 11: Caching Strategy
+// ============================================
+
+// Parameter Store automatically caches values for 5 minutes
+// Subsequent calls within TTL are instant (~1ms)
+
+/*
+'use client';
+
+export function CachingExample() {
+  // First call: Fetches from AWS (~50-100ms)
+  const { value: value1 } = useParameter('cognito/user-pool-id');
+
+  // Second call (within 5 minutes): Returns from cache (~1ms)
+  const { value: value2 } = useParameter('cognito/user-pool-id');
+
+  // Force refresh from AWS, bypassing cache
+  const { refresh } = useParameter('cognito/user-pool-id', {
+    refresh: true,
+  });
+
+  // Custom TTL (1 hour instead of 5 minutes)
+  const { value } = useParameter('cognito/user-pool-id', {
+    ttl: 60 * 60 * 1000,
+  });
+
+  return <div>Cached values</div>;
+}
+*/
