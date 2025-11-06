@@ -14,7 +14,7 @@ import { authenticateRequest } from "@/utils/auth/cognitoVerifier"
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     // Authenticate request
@@ -23,6 +23,9 @@ export async function POST(
       return authResult
     }
     const { userId } = authResult
+
+    // Await params in Next.js 15+
+    const { sessionId } = await params
 
     // Parse request body
     let body
@@ -38,8 +41,6 @@ export async function POST(
         { status: 400 }
       )
     }
-
-    const sessionId = params.sessionId
     const timestamp = req.nextUrl.searchParams.get("timestamp")
     const { endReason } = body
 

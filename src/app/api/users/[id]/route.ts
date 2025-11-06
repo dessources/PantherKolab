@@ -12,12 +12,15 @@ const verifier = CognitoJwtVerifier.create({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id: userId } = await params
+
     // Get token from Authorization header
     const authHeader = req.headers.get('authorization');
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: "Unauthorized - No token" }, { status: 401 });
     }
@@ -29,10 +32,10 @@ export async function GET(
     const loggedInUserId = payload.sub;
 
     // Check if user is viewing their own profile
-    const isOwnProfile = loggedInUserId === params.userId;
+    const isOwnProfile = loggedInUserId === userId;
 
     // Get user from DynamoDB
-    const user = await userService.getUser(params.userId);
+    const user = await userService.getUser(userId);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -50,13 +53,16 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params in Next.js 15+
+    const { id: userId } = await params
+
     const session = await fetchAuthSession();
     const tokenUserId = session.tokens?.idToken?.payload.sub as string;
 
-    if (tokenUserId !== params.userId) {
+    if (tokenUserId !== userId) {
       return NextResponse.json(
         { error: "Forbidden - You can only update your own profile" },
         { status: 403 }
@@ -65,16 +71,16 @@ export async function PUT(
 
     const updates = await req.json();
 
-    const existingUser = await userService.getUser(params.userId);
+    const existingUser = await userService.getUser(userId);
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { userId, email, createdAt, ...allowedUpdates } = updates; // Prevents updates on certain fields
+    const { userId: _, email, createdAt, ...allowedUpdates } = updates; // Prevents updates on certain fields
 
     const updatedUser = await userService.updateUser(
-      params.userId,
+      userId,
       allowedUpdates
     );
 

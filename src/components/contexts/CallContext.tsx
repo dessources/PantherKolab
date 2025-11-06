@@ -12,6 +12,7 @@ export type CallStatus = 'idle' | 'ringing' | 'connecting' | 'active' | 'ended'
 
 export interface ActiveCall {
   sessionId: string
+  timestamp?: string
   callType: 'DIRECT' | 'GROUP'
   initiatorId: string
   initiatorName?: string
@@ -22,6 +23,8 @@ export interface ActiveCall {
     chimeMeetingId?: string
     mediaPlacement?: Record<string, unknown>
   }
+  joinToken?: string
+  attendeeId?: string
   startedAt?: Date
   localVideoRef?: React.RefObject<HTMLVideoElement>
   remoteVideoRefs?: React.RefObject<HTMLVideoElement>[]

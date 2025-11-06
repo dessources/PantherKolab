@@ -1,24 +1,29 @@
-'use client'
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { getChimeManager } from "@/lib/chime/ChimeManager";
+import type { ChimeManagerConfig } from "@/lib/chime/ChimeManager";
 
 interface CallWindowProps {
-  isOpen: boolean
-  callType: 'DIRECT' | 'GROUP'
-  participantName?: string
-  participantCount?: number
-  onMuteToggle?: (isMuted: boolean) => void
-  onCameraToggle?: (isCameraOn: boolean) => void
-  onEndCall: () => Promise<void>
-  localVideoRef?: React.RefObject<HTMLVideoElement>
-  remoteVideoRefs?: React.RefObject<HTMLVideoElement>[]
-  isLoading?: boolean
-  connectionStatus?: 'connecting' | 'connected' | 'disconnected'
+  isOpen: boolean;
+  callType: "DIRECT" | "GROUP";
+  participantName?: string;
+  participantCount?: number;
+  onMuteToggle?: (isMuted: boolean) => void;
+  onCameraToggle?: (isCameraOn: boolean) => void;
+  onEndCall: () => Promise<void>;
+  localVideoRef?: React.RefObject<HTMLVideoElement>;
+  remoteVideoRefs?: React.RefObject<HTMLVideoElement>[];
+  isLoading?: boolean;
+  connectionStatus?: "connecting" | "connected" | "disconnected";
+  joinToken?: string;
+  chimeConfig?: ChimeManagerConfig;
 }
 
 /**
  * Main call window component with video tiles and controls
  * Supports both DIRECT (1-on-1) and GROUP calls
+ * Integrates with AWS Chime SDK for media handling
  */
 export function CallWindow({
   isOpen,
@@ -31,67 +36,170 @@ export function CallWindow({
   localVideoRef,
   remoteVideoRefs,
   isLoading = false,
-  connectionStatus = 'connected',
+  connectionStatus = "connected",
+  joinToken,
+  chimeConfig,
 }: CallWindowProps) {
-  const [isMuted, setIsMuted] = useState(false)
-  const [isCameraOn, setIsCameraOn] = useState(true)
-  const [isEndingCall, setIsEndingCall] = useState(false)
-  const [callDuration, setCallDuration] = useState(0)
-  const durationInterval = useRef<NodeJS.Timeout | null>(null)
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isEndingCall, setIsEndingCall] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [chimeInitialized, setChimeInitialized] = useState(false);
+  const durationInterval = useRef<NodeJS.Timeout | null>(null);
+  const chimeManagerRef = useRef(getChimeManager(chimeConfig));
 
   // Track call duration
   useEffect(() => {
     if (isOpen && !isEndingCall) {
       durationInterval.current = setInterval(() => {
-        setCallDuration((prev) => prev + 1)
-      }, 1000)
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
     }
 
     return () => {
       if (durationInterval.current) {
-        clearInterval(durationInterval.current)
+        clearInterval(durationInterval.current);
       }
-    }
-  }, [isOpen, isEndingCall])
+    };
+  }, [isOpen, isEndingCall]);
+
+  // Initialize and manage Chime session
+  useEffect(() => {
+    if (!isOpen || !joinToken) return;
+
+    const initializeChime = async () => {
+      try {
+        const chimeManager = chimeManagerRef.current;
+
+        // Initialize session with join token
+        await chimeManager.initializeSession(joinToken);
+
+        // Subscribe to Chime events
+        chimeManager.subscribe({
+          onParticipantJoined: (attendeeId, externalUserId) => {
+            console.log("Participant joined:", externalUserId);
+          },
+          onParticipantLeft: (attendeeId) => {
+            console.log("Participant left:", attendeeId);
+          },
+          onVideoTileAdded: (tileState) => {
+            // Bind remote video element when tile is added
+            if (
+              !tileState.localTile &&
+              remoteVideoRefs &&
+              remoteVideoRefs.length > 0
+            ) {
+              const ref = remoteVideoRefs[remoteVideoRefs.length - 1];
+              if (ref?.current) {
+                chimeManager.bindVideoElement(
+                  tileState.tileId as number,
+                  ref.current
+                );
+              }
+            }
+          },
+          onVideoTileRemoved: (tileState) => {
+            // Unbind video element when tile is removed
+            chimeManager.unbindVideoElement(tileState.tileId as number);
+          },
+          onError: (error) => {
+            console.error("Chime error:", error);
+          },
+        });
+
+        // Start meeting
+        await chimeManager.start();
+
+        // Start local audio and video
+        await chimeManager.startLocalAudio();
+        if (isCameraOn) {
+          await chimeManager.startLocalVideo();
+        }
+
+        setChimeInitialized(true);
+      } catch (error) {
+        console.error("Failed to initialize Chime:", error);
+      }
+    };
+
+    initializeChime();
+
+    return () => {
+      // Cleanup on component unmount
+      chimeManagerRef.current?.cleanup().catch(() => {});
+    };
+  }, [isOpen, joinToken, isCameraOn, remoteVideoRefs]);
+
+  // Handle mute/unmute
+  useEffect(() => {
+    if (!chimeInitialized) return;
+
+    const updateAudio = async () => {
+      if (isMuted) {
+        chimeManagerRef.current.stopLocalAudio().catch(() => {});
+      } else {
+        chimeManagerRef.current.startLocalAudio().catch(() => {});
+      }
+    };
+
+    updateAudio();
+  }, [isMuted, chimeInitialized]);
+
+  // Handle camera toggle
+  useEffect(() => {
+    if (!chimeInitialized) return;
+
+    const updateVideo = async () => {
+      if (isCameraOn) {
+        chimeManagerRef.current.startLocalVideo().catch(() => {});
+      } else {
+        chimeManagerRef.current.stopLocalVideo().catch(() => {});
+      }
+    };
+
+    updateVideo();
+  }, [isCameraOn, chimeInitialized]);
 
   const handleMuteToggle = () => {
-    const newMutedState = !isMuted
-    setIsMuted(newMutedState)
-    onMuteToggle?.(newMutedState)
-  }
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+    onMuteToggle?.(newMutedState);
+  };
 
   const handleCameraToggle = () => {
-    const newCameraState = !isCameraOn
-    setIsCameraOn(newCameraState)
-    onCameraToggle?.(newCameraState)
-  }
+    const newCameraState = !isCameraOn;
+    setIsCameraOn(newCameraState);
+    onCameraToggle?.(newCameraState);
+  };
 
   const handleEndCall = async () => {
     try {
-      setIsEndingCall(true)
-      await onEndCall()
+      setIsEndingCall(true);
+      await onEndCall();
     } catch (error) {
-      console.error('Error ending call:', error)
-      setIsEndingCall(false)
+      console.error("Error ending call:", error);
+      setIsEndingCall(false);
     }
-  }
+  };
 
   const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs
+        .toString()
+        .padStart(2, "0")}`;
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`
-  }
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  };
 
   if (!isOpen) {
-    return null
+    return null;
   }
 
-  const isDirectCall = callType === 'DIRECT'
+  const isDirectCall = callType === "DIRECT";
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
@@ -102,28 +210,32 @@ export function CallWindow({
           <div className="flex items-center gap-2">
             <div
               className={`w-3 h-3 rounded-full ${
-                connectionStatus === 'connected'
-                  ? 'bg-green-500'
-                  : connectionStatus === 'connecting'
-                    ? 'bg-yellow-500 animate-pulse'
-                    : 'bg-red-500'
+                connectionStatus === "connected"
+                  ? "bg-green-500"
+                  : connectionStatus === "connecting"
+                  ? "bg-yellow-500 animate-pulse"
+                  : "bg-red-500"
               }`}
             />
             <span className="text-white text-sm font-['Bitter']">
-              {connectionStatus === 'connected'
-                ? 'Connected'
-                : connectionStatus === 'connecting'
-                  ? 'Connecting...'
-                  : 'Disconnected'}
+              {connectionStatus === "connected"
+                ? "Connected"
+                : connectionStatus === "connecting"
+                ? "Connecting..."
+                : "Disconnected"}
             </span>
           </div>
 
           {/* Call info */}
           <div>
             <h2 className="text-white font-bold font-['Bitter']">
-              {isDirectCall ? participantName || 'Call' : `Group Call (${participantCount})`}
+              {isDirectCall
+                ? participantName || "Call"
+                : `Group Call (${participantCount})`}
             </h2>
-            <p className="text-gray-400 text-sm">{formatDuration(callDuration)}</p>
+            <p className="text-gray-400 text-sm">
+              {formatDuration(callDuration)}
+            </p>
           </div>
         </div>
 
@@ -132,8 +244,18 @@ export function CallWindow({
           className="text-gray-400 hover:text-white transition-colors"
           aria-label="Minimize"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M20 12H4"
+            />
           </svg>
         </button>
       </div>
@@ -156,9 +278,11 @@ export function CallWindow({
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center text-4xl font-bold text-gray-500 font-['Bitter'] mx-auto mb-4">
-                      {(participantName || 'U').charAt(0).toUpperCase()}
+                      {(participantName || "U").charAt(0).toUpperCase()}
                     </div>
-                    <p className="text-gray-400">{participantName || 'Participant'}</p>
+                    <p className="text-gray-400">
+                      {participantName || "Participant"}
+                    </p>
                   </div>
                 </div>
               )}
@@ -177,8 +301,18 @@ export function CallWindow({
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
-                    <svg className="w-8 h-8 text-gray-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    <svg
+                      className="w-8 h-8 text-gray-600 mx-auto"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                      />
                     </svg>
                     <p className="text-gray-600 text-xs mt-2">You</p>
                   </div>
@@ -188,7 +322,11 @@ export function CallWindow({
               {/* Muted indicator on local video */}
               {isMuted && (
                 <div className="absolute top-2 right-2 bg-red-500 rounded-full p-1">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-3 h-3 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M19.114 5.636l1.414-1.414 1.414 1.414-1.414 1.414 1.414 1.414-1.414 1.414-1.414-1.414-1.414 1.414-1.414-1.414 1.414-1.414-1.414-1.414 1.414-1.414 1.414 1.414zM4.222 4a2 2 0 00-1.98 2.292l1.005 7.035A6 6 0 0010 17.93V19h4v-2.069a6 6 0 006.753-3.603l1.005-7.035A2 2 0 0019.778 4H4.222z" />
                   </svg>
                 </div>
@@ -201,7 +339,10 @@ export function CallWindow({
             <div className="grid grid-cols-2 gap-4 h-full">
               {/* Remote participants */}
               {remoteVideoRefs?.map((ref, index) => (
-                <div key={index} className="relative bg-gray-800 rounded-lg overflow-hidden">
+                <div
+                  key={index}
+                  className="relative bg-gray-800 rounded-lg overflow-hidden"
+                >
                   <video
                     ref={ref}
                     autoPlay
@@ -231,7 +372,9 @@ export function CallWindow({
               {/* Placeholder for empty slots */}
               {remoteVideoRefs && remoteVideoRefs.length < 3 && (
                 <div className="bg-gray-800 rounded-lg flex items-center justify-center">
-                  <p className="text-gray-600 text-sm">Waiting for participants...</p>
+                  <p className="text-gray-600 text-sm">
+                    Waiting for participants...
+                  </p>
                 </div>
               )}
             </div>
@@ -247,10 +390,10 @@ export function CallWindow({
           disabled={isLoading}
           className={`p-3 rounded-full transition-colors ${
             isMuted
-              ? 'bg-red-500 hover:bg-red-600 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-white'
+              ? "bg-red-500 hover:bg-red-600 text-white"
+              : "bg-gray-700 hover:bg-gray-600 text-white"
           } disabled:opacity-50 disabled:cursor-not-allowed`}
-          title={isMuted ? 'Unmute' : 'Mute'}
+          title={isMuted ? "Unmute" : "Mute"}
         >
           {isMuted ? (
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -271,10 +414,10 @@ export function CallWindow({
           disabled={isLoading}
           className={`p-3 rounded-full transition-colors ${
             !isCameraOn
-              ? 'bg-red-500 hover:bg-red-600 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-white'
+              ? "bg-red-500 hover:bg-red-600 text-white"
+              : "bg-gray-700 hover:bg-gray-600 text-white"
           } disabled:opacity-50 disabled:cursor-not-allowed`}
-          title={isCameraOn ? 'Stop camera' : 'Start camera'}
+          title={isCameraOn ? "Stop camera" : "Start camera"}
         >
           {isCameraOn ? (
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -283,7 +426,15 @@ export function CallWindow({
           ) : (
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2z" />
-              <line x1="2" y1="2" x2="22" y2="22" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              <line
+                x1="2"
+                y1="2"
+                x2="22"
+                y2="22"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           )}
         </button>
@@ -305,5 +456,5 @@ export function CallWindow({
         </button>
       </div>
     </div>
-  )
+  );
 }

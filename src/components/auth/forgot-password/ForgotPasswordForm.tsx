@@ -55,7 +55,9 @@ export function ForgotPasswordForm() {
           Forgot Password
         </h1>
         <p className="mt-2 text-zinc-600 text-base font-semibold font-['Bitter']">
-          Enter your FIU email and we'll send you a code to reset your password
+          {
+            "Enter your FIU email and we'll send you a code to reset your password"
+          }
         </p>
       </div>
 
@@ -131,7 +133,7 @@ export function ForgotPasswordForm() {
 
       {/* Footer */}
       <div className="w-full text-center text-zinc-600 text-xs font-semibold font-['Bitter']">
-        Check your spam folder if you don't see the email
+        {"Check your spam folder if you don't see the email"}
       </div>
     </div>
   );

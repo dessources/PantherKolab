@@ -104,13 +104,46 @@ export function CallManager({
       // Update call context
       await contextAcceptCall(incomingCall.sessionId)
 
+      // Fetch join info from the new endpoint and store it in activeCall
+      try {
+        const token = localStorage.getItem('auth_token')
+        if (token && activeCall?.sessionId === incomingCall.sessionId) {
+          const joinInfoResponse = await fetch('/api/calls/join-info', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              sessionId: incomingCall.sessionId,
+              timestamp: incomingCall.timestamp,
+            }),
+          })
+
+          if (joinInfoResponse.ok) {
+            const joinInfoData = await joinInfoResponse.json()
+            if (joinInfoData.success && joinInfoData.data) {
+              // Update active call with join token and attendee info
+              setActiveCall({
+                ...activeCall,
+                joinToken: joinInfoData.data.joinToken,
+                attendeeId: joinInfoData.data.attendeeId,
+                timestamp: incomingCall.timestamp,
+              })
+            }
+          }
+        }
+      } catch (joinInfoError) {
+        console.error('[CallManager] Failed to fetch join info:', joinInfoError)
+      }
+
       // Update status
       updateCallStatus(incomingCall.sessionId, 'active')
       onCallStatusChange?.('active')
     } catch (err) {
       console.error('[CallManager] Failed to accept call:', err)
     }
-  }, [incomingCall, socketAcceptCall, contextAcceptCall, updateCallStatus, onCallStatusChange])
+  }, [incomingCall, activeCall, socketAcceptCall, contextAcceptCall, updateCallStatus, setActiveCall, onCallStatusChange])
 
   /**
    * Handle incoming call decline
@@ -252,6 +285,7 @@ export function CallManager({
           connectionStatus={
             activeCall.status === 'connecting' ? 'connecting' : 'connected'
           }
+          joinToken={activeCall.joinToken}
         />
       )}
     </>

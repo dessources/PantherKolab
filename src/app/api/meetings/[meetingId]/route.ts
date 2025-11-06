@@ -12,7 +12,7 @@ import { authenticateRequest } from "@/utils/auth/cognitoVerifier"
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { meetingId: string } }
+  { params }: { params: Promise<{ meetingId: string }> }
 ) {
   try {
     // Authenticate request
@@ -22,7 +22,7 @@ export async function GET(
     }
     const { userId } = authResult
 
-    const meetingId = params.meetingId
+    const { meetingId } = await params
 
     // Validate meetingId is provided
     if (!meetingId) {
