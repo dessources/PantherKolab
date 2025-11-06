@@ -1,18 +1,17 @@
-import { v4 as uuidv4 } from 'uuid'
+import { v4 as uuidv4 } from "uuid";
 import {
   CreateMeetingCommand,
   DeleteMeetingCommand,
   CreateAttendeeCommand,
   Attendee as ChimeAttendee,
-} from '@aws-sdk/client-chime-sdk-meetings'
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
+} from "@aws-sdk/client-chime-sdk-meetings";
 import {
   GetCommand,
   PutCommand,
   UpdateCommand,
   QueryCommand,
-} from '@aws-sdk/lib-dynamodb'
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
+} from "@aws-sdk/lib-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 /**
  * marshall: Converts JavaScript objects into DynamoDB AttributeValue format
@@ -37,13 +36,13 @@ import {
   CreateMeetingInput,
   CreateCallSessionInput,
   TABLE_NAMES,
-} from '@/types/database'
-import { chimeClient } from '@/lib/chime/chimeConfig'
+} from "@/types/database";
+import { chimeClient } from "@/lib/chime/chimeConfig";
+import { dynamoDb } from "@/lib/dynamodb";
 
-// Initialize DynamoDB client
-const dynamodbClient = new DynamoDBClient({
-  region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
-})
+// Use the pre-configured DynamoDB client from the library
+// It includes proper credentials configuration
+const dynamodbClient = dynamoDb;
 
 /**
  * Service for managing Chime meetings and call sessions
@@ -53,8 +52,8 @@ class ChimeService {
    * Create a new meeting
    */
   async createMeeting(input: CreateMeetingInput): Promise<Meeting> {
-    const meetingId = uuidv4()
-    const now = new Date().toISOString()
+    const meetingId = uuidv4();
+    const now = new Date().toISOString();
 
     // Default settings if not provided
     const settings: MeetingSettings = {
@@ -63,7 +62,7 @@ class ChimeService {
       allowScreenShare: input.settings?.allowScreenShare ?? true,
       recordingEnabled: input.settings?.recordingEnabled ?? false,
       waitingRoomEnabled: input.settings?.waitingRoomEnabled ?? true,
-    }
+    };
 
     // Create meeting record in DynamoDB
     const meeting: Meeting = {
@@ -76,7 +75,7 @@ class ChimeService {
       startTime: null,
       endTime: null,
       duration: null,
-      status: 'SCHEDULED',
+      status: "SCHEDULED",
       accessType: input.accessType,
       invitedUserIds: input.invitedUserIds || [],
       conversationId: input.conversationId || null,
@@ -84,93 +83,114 @@ class ChimeService {
       settings,
       createdAt: now,
       updatedAt: now,
-    }
+    };
 
     try {
       await dynamodbClient.send(
         new PutCommand({
           TableName: TABLE_NAMES.MEETINGS,
-          Item: marshall(meeting),
+          Item: meeting,
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to create meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to create meeting: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
-    return meeting
+    return meeting;
   }
 
   /**
    * Start a meeting (create Chime meeting and update status)
    */
-  async startMeeting(meetingId: string): Promise<{ meeting: Meeting; chimeMeetingId: string }> {
+  async startMeeting(
+    meetingId: string
+  ): Promise<{ meeting: Meeting; chimeMeetingId: string }> {
     // Get meeting from DynamoDB
-    const meeting = await this.getMeetingById(meetingId)
+    const meeting = await this.getMeetingById(meetingId);
     if (!meeting) {
-      throw new Error(`Meeting not found: ${meetingId}`)
+      throw new Error(`Meeting not found: ${meetingId}`);
     }
 
-    if (meeting.status === 'ACTIVE') {
-      return { meeting, chimeMeetingId: meeting.chimeMeetingId! }
+    if (meeting.status === "ACTIVE") {
+      return { meeting, chimeMeetingId: meeting.chimeMeetingId! };
     }
 
     // Create Chime meeting
-    let chimeMeetingId: string
+    let chimeMeetingId: string;
     try {
       const response = await chimeClient.send(
         new CreateMeetingCommand({
           ClientRequestToken: meetingId,
-          MediaRegion: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
+          MediaRegion: process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1",
           ExternalMeetingId: meetingId,
         })
-      )
+      );
       if (!response.Meeting?.MeetingId) {
-        throw new Error('Failed to get Chime meeting ID')
+        throw new Error("Failed to get Chime meeting ID");
       }
-      chimeMeetingId = response.Meeting.MeetingId
+      chimeMeetingId = response.Meeting.MeetingId;
     } catch (error) {
-      throw new Error(`Failed to create Chime meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to create Chime meeting: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
     // Update meeting status in DynamoDB
-    const now = new Date().toISOString()
+    const now = new Date().toISOString();
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.MEETINGS,
-          Key: marshall({ meetingId }),
-          UpdateExpression: 'SET #status = :status, #chimeMeetingId = :chimeMeetingId, #startTime = :startTime, #updatedAt = :updatedAt',
+          Key: { meetingId },
+          UpdateExpression:
+            "SET #status = :status, #chimeMeetingId = :chimeMeetingId, #startTime = :startTime, #updatedAt = :updatedAt",
           ExpressionAttributeNames: {
-            '#status': 'status',
-            '#chimeMeetingId': 'chimeMeetingId',
-            '#startTime': 'startTime',
-            '#updatedAt': 'updatedAt',
+            "#status": "status",
+            "#chimeMeetingId": "chimeMeetingId",
+            "#startTime": "startTime",
+            "#updatedAt": "updatedAt",
           },
           ExpressionAttributeValues: {
-            ':status': { S: 'ACTIVE' },
-            ':chimeMeetingId': { S: chimeMeetingId },
-            ':startTime': { S: now },
-            ':updatedAt': { S: now },
+            ":status": { S: "ACTIVE" },
+            ":chimeMeetingId": { S: chimeMeetingId },
+            ":startTime": { S: now },
+            ":updatedAt": { S: now },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to update meeting status: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to update meeting status: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
     return {
-      meeting: { ...meeting, status: 'ACTIVE', chimeMeetingId, startTime: now, updatedAt: now },
+      meeting: {
+        ...meeting,
+        status: "ACTIVE",
+        chimeMeetingId,
+        startTime: now,
+        updatedAt: now,
+      },
       chimeMeetingId,
-    }
+    };
   }
 
   /**
    * End a meeting and cleanup Chime resources
    */
   async endMeeting(meetingId: string): Promise<void> {
-    const meeting = await this.getMeetingById(meetingId)
+    const meeting = await this.getMeetingById(meetingId);
     if (!meeting) {
-      throw new Error(`Meeting not found: ${meetingId}`)
+      throw new Error(`Meeting not found: ${meetingId}`);
     }
 
     // Delete Chime meeting if it exists
@@ -180,39 +200,53 @@ class ChimeService {
           new DeleteMeetingCommand({
             MeetingId: meeting.chimeMeetingId,
           })
-        )
+        );
       } catch (error) {
-        console.error(`Failed to delete Chime meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        console.error(
+          `Failed to delete Chime meeting: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
     }
 
     // Update meeting status in DynamoDB
-    const now = new Date().toISOString()
-    const startTime = meeting.startTime ? new Date(meeting.startTime).getTime() : 0
-    const duration = startTime ? Math.floor((new Date().getTime() - startTime) / 1000) : null
+    const now = new Date().toISOString();
+    const startTime = meeting.startTime
+      ? new Date(meeting.startTime).getTime()
+      : 0;
+    const duration = startTime
+      ? Math.floor((new Date().getTime() - startTime) / 1000)
+      : null;
 
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.MEETINGS,
-          Key: marshall({ meetingId }),
-          UpdateExpression: 'SET #status = :status, #endTime = :endTime, #duration = :duration, #updatedAt = :updatedAt',
+          Key: { meetingId },
+          UpdateExpression:
+            "SET #status = :status, #endTime = :endTime, #duration = :duration, #updatedAt = :updatedAt",
           ExpressionAttributeNames: {
-            '#status': 'status',
-            '#endTime': 'endTime',
-            '#duration': 'duration',
-            '#updatedAt': 'updatedAt',
+            "#status": "status",
+            "#endTime": "endTime",
+            "#duration": "duration",
+            "#updatedAt": "updatedAt",
           },
           ExpressionAttributeValues: {
-            ':status': { S: 'ENDED' },
-            ':endTime': { S: now },
-            ':duration': duration !== null ? { N: duration.toString() } : { NULL: true },
-            ':updatedAt': { S: now },
+            ":status": { S: "ENDED" },
+            ":endTime": { S: now },
+            ":duration":
+              duration !== null ? { N: duration.toString() } : { NULL: true },
+            ":updatedAt": { S: now },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to end meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to end meeting: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -220,9 +254,9 @@ class ChimeService {
    * Cancel a meeting
    */
   async cancelMeeting(meetingId: string): Promise<void> {
-    const meeting = await this.getMeetingById(meetingId)
+    const meeting = await this.getMeetingById(meetingId);
     if (!meeting) {
-      throw new Error(`Meeting not found: ${meetingId}`)
+      throw new Error(`Meeting not found: ${meetingId}`);
     }
 
     // Delete Chime meeting if it's active
@@ -232,32 +266,40 @@ class ChimeService {
           new DeleteMeetingCommand({
             MeetingId: meeting.chimeMeetingId,
           })
-        )
+        );
       } catch (error) {
-        console.error(`Failed to delete Chime meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        console.error(
+          `Failed to delete Chime meeting: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
     }
 
     // Update status to CANCELLED
-    const now = new Date().toISOString()
+    const now = new Date().toISOString();
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.MEETINGS,
-          Key: marshall({ meetingId }),
-          UpdateExpression: 'SET #status = :status, #updatedAt = :updatedAt',
+          Key: { meetingId },
+          UpdateExpression: "SET #status = :status, #updatedAt = :updatedAt",
           ExpressionAttributeNames: {
-            '#status': 'status',
-            '#updatedAt': 'updatedAt',
+            "#status": "status",
+            "#updatedAt": "updatedAt",
           },
           ExpressionAttributeValues: {
-            ':status': { S: 'CANCELLED' },
-            ':updatedAt': { S: now },
+            ":status": { S: "CANCELLED" },
+            ":updatedAt": { S: now },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to cancel meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to cancel meeting: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -269,12 +311,16 @@ class ChimeService {
       const response = await dynamodbClient.send(
         new GetCommand({
           TableName: TABLE_NAMES.MEETINGS,
-          Key: marshall({ meetingId }),
+          Key: { meetingId },
         })
-      )
-      return response.Item ? (unmarshall(response.Item) as Meeting) : null
+      );
+      return response.Item ? (unmarshall(response.Item) as Meeting) : null;
     } catch (error) {
-      throw new Error(`Failed to get meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to get meeting: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -286,76 +332,98 @@ class ChimeService {
       const response = await dynamodbClient.send(
         new QueryCommand({
           TableName: TABLE_NAMES.MEETINGS,
-          IndexName: 'CreatorIndex',
-          KeyConditionExpression: 'creatorId = :creatorId',
+          IndexName: "CreatorIndex",
+          KeyConditionExpression: "creatorId = :creatorId",
           ExpressionAttributeValues: {
-            ':creatorId': { S: creatorId },
+            ":creatorId": { S: creatorId },
           },
         })
-      )
-      return response.Items ? response.Items.map((item) => unmarshall(item) as Meeting) : []
+      );
+      return response.Items
+        ? response.Items.map((item) => unmarshall(item) as Meeting)
+        : [];
     } catch (error) {
-      throw new Error(`Failed to get user meetings: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to get user meetings: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   /**
    * Validate meeting access for a user
    */
-  async validateMeetingAccess(meetingId: string, userId: string): Promise<boolean> {
-    const meeting = await this.getMeetingById(meetingId)
+  async validateMeetingAccess(
+    meetingId: string,
+    userId: string
+  ): Promise<boolean> {
+    const meeting = await this.getMeetingById(meetingId);
     if (!meeting) {
-      return false
+      return false;
     }
 
     // Public meetings are accessible to everyone
-    if (meeting.accessType === 'PUBLIC') {
-      return true
+    if (meeting.accessType === "PUBLIC") {
+      return true;
     }
 
     // Restricted meetings require invite or creator
-    if (meeting.accessType === 'RESTRICTED') {
-      return meeting.creatorId === userId || meeting.invitedUserIds.includes(userId)
+    if (meeting.accessType === "RESTRICTED") {
+      return (
+        meeting.creatorId === userId || meeting.invitedUserIds.includes(userId)
+      );
     }
 
     // Conversation-based meetings require participant status (would need to check conversation)
-    if (meeting.accessType === 'CONVERSATION') {
-      return meeting.creatorId === userId || meeting.invitedUserIds.includes(userId)
+    if (meeting.accessType === "CONVERSATION") {
+      return (
+        meeting.creatorId === userId || meeting.invitedUserIds.includes(userId)
+      );
     }
 
-    return false
+    return false;
   }
 
   /**
    * Generate attendee token for joining a meeting
    */
-  async generateAttendeeToken(meetingId: string, userId: string): Promise<{
-    attendeeId: string
-    joinToken: string
+  async generateAttendeeToken(
+    meetingId: string,
+    userId: string
+  ): Promise<{
+    attendeeId: string;
+    joinToken: string;
   }> {
     // Validate access
-    const hasAccess = await this.validateMeetingAccess(meetingId, userId)
+    const hasAccess = await this.validateMeetingAccess(meetingId, userId);
     if (!hasAccess) {
-      throw new Error(`User ${userId} does not have access to meeting ${meetingId}`)
+      throw new Error(
+        `User ${userId} does not have access to meeting ${meetingId}`
+      );
     }
 
-    const meeting = await this.getMeetingById(meetingId)
+    const meeting = await this.getMeetingById(meetingId);
     if (!meeting || !meeting.chimeMeetingId) {
-      throw new Error(`Meeting not found or not started: ${meetingId}`)
+      throw new Error(`Meeting not found or not started: ${meetingId}`);
     }
 
     // Create attendee in Chime
-    let attendee: ChimeAttendee
+    let attendee: ChimeAttendee;
     try {
       const response = await chimeClient.send(
         new CreateAttendeeCommand({
           MeetingId: meeting.chimeMeetingId,
           ExternalUserId: userId,
         })
-      )
-      attendee = response.Attendee!
+      );
+      attendee = response.Attendee!;
     } catch (error) {
-      throw new Error(`Failed to create attendee: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to create attendee: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
     // Create attendee record in DynamoDB
@@ -369,58 +437,68 @@ class ChimeService {
       duration: null,
       wasInvited: meeting.invitedUserIds.includes(userId),
       createdAt: new Date().toISOString(),
-    }
+    };
 
     try {
       await dynamodbClient.send(
         new PutCommand({
           TableName: TABLE_NAMES.MEETING_ATTENDEES,
-          Item: marshall(attendeeRecord),
+          Item: attendeeRecord,
         })
-      )
+      );
     } catch (error) {
-      console.error(`Failed to create attendee record: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(
+        `Failed to create attendee record: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
     return {
       attendeeId: attendee.AttendeeId!,
       joinToken: attendee.JoinToken!,
-    }
+    };
   }
 
   /**
    * Create a call session (direct or group call)
    */
   async createCallSession(input: CreateCallSessionInput): Promise<CallSession> {
-    const sessionId = uuidv4()
-    const now = new Date().toISOString()
+    const sessionId = uuidv4();
+    const now = new Date().toISOString();
 
     // Create Chime meeting for the call
-    let chimeMeetingId: string
+    let chimeMeetingId: string;
     try {
       const response = await chimeClient.send(
         new CreateMeetingCommand({
           ClientRequestToken: sessionId,
-          MediaRegion: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
+          MediaRegion: process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1",
           ExternalMeetingId: `call-${sessionId}`,
         })
-      )
+      );
       if (!response.Meeting?.MeetingId) {
-        throw new Error('Failed to get Chime meeting ID')
+        throw new Error("Failed to get Chime meeting ID");
       }
-      chimeMeetingId = response.Meeting.MeetingId
+      chimeMeetingId = response.Meeting.MeetingId;
     } catch (error) {
-      throw new Error(`Failed to create Chime meeting for call: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to create Chime meeting for call: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
     // Initialize participants
-    const participants: CallParticipant[] = input.participantIds.map((userId) => ({
-      userId,
-      joinedAt: userId === input.initiatorId ? now : null,
-      leftAt: null,
-      status: userId === input.initiatorId ? 'JOINED' : 'RINGING',
-      chimeAttendeeId: null,
-    }))
+    const participants: CallParticipant[] = input.participantIds.map(
+      (userId) => ({
+        userId,
+        joinedAt: userId === input.initiatorId ? now : null,
+        leftAt: null,
+        status: userId === input.initiatorId ? "JOINED" : "RINGING",
+        chimeAttendeeId: null,
+      })
+    );
 
     // Create call session record
     const callSession: CallSession = {
@@ -431,54 +509,69 @@ class ChimeService {
       conversationId: input.conversationId,
       initiatorId: input.initiatorId,
       participants,
-      status: 'RINGING',
+      status: "RINGING",
       startedAt: now,
       endedAt: null,
       duration: null,
       endReason: null,
       createdAt: now,
-    }
+    };
 
     try {
       await dynamodbClient.send(
         new PutCommand({
           TableName: TABLE_NAMES.CALL_SESSIONS,
-          Item: marshall(callSession),
+          Item: callSession,
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to create call session: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to create call session: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
-    return callSession
+    return callSession;
   }
 
   /**
    * Update call session status
    */
-  async updateCallSessionStatus(sessionId: string, status: CallStatus, endReason?: string): Promise<void> {
-    const now = new Date().toISOString()
+  async updateCallSessionStatus(
+    sessionId: string,
+    status: CallStatus,
+    endReason?: string
+  ): Promise<void> {
+    const now = new Date().toISOString();
 
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.CALL_SESSIONS,
-          Key: marshall({ sessionId, timestamp: now }),
-          UpdateExpression: 'SET #status = :status' + (endReason ? ', #endReason = :endReason' : '') + ', #updatedAt = :updatedAt',
+          Key: { sessionId, timestamp: now },
+          UpdateExpression:
+            "SET #status = :status" +
+            (endReason ? ", #endReason = :endReason" : "") +
+            ", #updatedAt = :updatedAt",
           ExpressionAttributeNames: {
-            '#status': 'status',
-            ...(endReason && { '#endReason': 'endReason' }),
-            '#updatedAt': 'updatedAt',
+            "#status": "status",
+            ...(endReason && { "#endReason": "endReason" }),
+            "#updatedAt": "updatedAt",
           },
           ExpressionAttributeValues: {
-            ':status': { S: status },
-            ...(endReason && { ':endReason': { S: endReason } }),
-            ':updatedAt': { S: now },
+            ":status": { S: status },
+            ...(endReason && { ":endReason": { S: endReason } }),
+            ":updatedAt": { S: now },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to update call session: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to update call session: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
@@ -496,56 +589,67 @@ class ChimeService {
       const response = await dynamodbClient.send(
         new GetCommand({
           TableName: TABLE_NAMES.CALL_SESSIONS,
-          Key: marshall({ sessionId, timestamp }),
+          Key: { sessionId, timestamp },
         })
-      )
+      );
 
       if (!response.Item) {
-        throw new Error(`Call session not found: ${sessionId}`)
+        throw new Error(`Call session not found: ${sessionId}`);
       }
 
-      const callSession = unmarshall(response.Item) as CallSession
+      const callSession = unmarshall(response.Item) as CallSession;
       const participants = callSession.participants.map((p) => {
         if (p.userId === userId) {
-          const now = new Date().toISOString()
+          const now = new Date().toISOString();
           return {
             ...p,
             status: status as ParticipantStatus,
-            joinedAt: status === 'JOINED' && !p.joinedAt ? now : p.joinedAt,
-            leftAt: status === 'LEFT' && !p.leftAt ? now : p.leftAt,
+            joinedAt: status === "JOINED" && !p.joinedAt ? now : p.joinedAt,
+            leftAt: status === "LEFT" && !p.leftAt ? now : p.leftAt,
             chimeAttendeeId: chimeAttendeeId || p.chimeAttendeeId,
-          }
+          };
         }
-        return p
-      })
+        return p;
+      });
 
-      const now = new Date().toISOString()
+      const now = new Date().toISOString();
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.CALL_SESSIONS,
-          Key: marshall({ sessionId, timestamp }),
-          UpdateExpression: 'SET participants = :participants, #updatedAt = :updatedAt',
+          Key: { sessionId, timestamp },
+          UpdateExpression:
+            "SET participants = :participants, #updatedAt = :updatedAt",
           ExpressionAttributeNames: {
-            '#updatedAt': 'updatedAt',
+            "#updatedAt": "updatedAt",
           },
           ExpressionAttributeValues: {
-            ':participants': { L: participants.map((p) => ({ M: marshall(p) })) },
-            ':updatedAt': { S: now },
+            ":participants": {
+              L: participants.map((p) => ({ M: marshall(p) })),
+            },
+            ":updatedAt": { S: now },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to update participant status: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to update participant status: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   /**
    * End a call session
    */
-  async endCallSession(sessionId: string, timestamp: string, endReason: string): Promise<void> {
-    const callSession = await this.getCallSessionById(sessionId, timestamp)
+  async endCallSession(
+    sessionId: string,
+    timestamp: string,
+    endReason: string
+  ): Promise<void> {
+    const callSession = await this.getCallSessionById(sessionId, timestamp);
     if (!callSession) {
-      throw new Error(`Call session not found: ${sessionId}`)
+      throw new Error(`Call session not found: ${sessionId}`);
     }
 
     // Delete Chime meeting
@@ -555,167 +659,208 @@ class ChimeService {
           new DeleteMeetingCommand({
             MeetingId: callSession.chimeMeetingId,
           })
-        )
+        );
       } catch (error) {
-        console.error(`Failed to delete Chime meeting: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        console.error(
+          `Failed to delete Chime meeting: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
     }
 
     // Calculate duration
-    const startTime = new Date(callSession.startedAt).getTime()
-    const now = new Date().getTime()
-    const duration = Math.floor((now - startTime) / 1000)
+    const startTime = new Date(callSession.startedAt).getTime();
+    const now = new Date().getTime();
+    const duration = Math.floor((now - startTime) / 1000);
 
     // Update call session
-    const nowStr = new Date().toISOString()
+    const nowStr = new Date().toISOString();
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.CALL_SESSIONS,
-          Key: marshall({ sessionId, timestamp: callSession.timestamp }),
-          UpdateExpression: 'SET #status = :status, #endedAt = :endedAt, #duration = :duration, #endReason = :endReason',
+          Key: { sessionId, timestamp: callSession.timestamp },
+          UpdateExpression:
+            "SET #status = :status, #endedAt = :endedAt, #duration = :duration, #endReason = :endReason",
           ExpressionAttributeNames: {
-            '#status': 'status',
-            '#endedAt': 'endedAt',
-            '#duration': 'duration',
-            '#endReason': 'endReason',
+            "#status": "status",
+            "#endedAt": "endedAt",
+            "#duration": "duration",
+            "#endReason": "endReason",
           },
           ExpressionAttributeValues: {
-            ':status': { S: 'ENDED' },
-            ':endedAt': { S: nowStr },
-            ':duration': { N: duration.toString() },
-            ':endReason': { S: endReason },
+            ":status": { S: "ENDED" },
+            ":endedAt": { S: nowStr },
+            ":duration": { N: duration.toString() },
+            ":endReason": { S: endReason },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to end call session: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to end call session: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   /**
    * Get call session by ID
    */
-  async getCallSessionById(sessionId: string, timestamp: string): Promise<CallSession | null> {
+  async getCallSessionById(
+    sessionId: string,
+    timestamp: string
+  ): Promise<CallSession | null> {
     try {
       const response = await dynamodbClient.send(
         new GetCommand({
           TableName: TABLE_NAMES.CALL_SESSIONS,
-          Key: marshall({ sessionId, timestamp }),
+          Key: { sessionId, timestamp },
         })
-      )
-      return response.Item ? (unmarshall(response.Item) as CallSession) : null
+      );
+      return response.Item ? (unmarshall(response.Item) as CallSession) : null;
     } catch (error) {
-      throw new Error(`Failed to get call session: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to get call session: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   /**
    * Create a meeting invite
    */
-  async createMeetingInvite(meetingId: string, inviteeId: string, invitedBy: string, message?: string): Promise<MeetingInvite> {
-    const inviteId = uuidv4()
-    const now = new Date().toISOString()
+  async createMeetingInvite(
+    meetingId: string,
+    inviteeId: string,
+    invitedBy: string,
+    message?: string
+  ): Promise<MeetingInvite> {
+    const inviteId = uuidv4();
+    const now = new Date().toISOString();
 
     const invite: MeetingInvite = {
       inviteId,
       meetingId,
       inviteeId,
       invitedBy,
-      status: 'PENDING',
+      status: "PENDING",
       sentAt: now,
       respondedAt: null,
       message: message || null,
       createdAt: now,
-    }
+    };
 
     try {
       await dynamodbClient.send(
         new PutCommand({
           TableName: TABLE_NAMES.MEETING_INVITES,
-          Item: marshall(invite),
+          Item: invite,
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to create invite: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to create invite: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
 
-    return invite
+    return invite;
   }
 
   /**
    * Update meeting invite status
    */
-  async updateInviteStatus(inviteId: string, status: InviteStatus): Promise<void> {
-    const now = new Date().toISOString()
+  async updateInviteStatus(
+    inviteId: string,
+    status: InviteStatus
+  ): Promise<void> {
+    const now = new Date().toISOString();
 
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.MEETING_INVITES,
-          Key: marshall({ inviteId }),
-          UpdateExpression: 'SET #status = :status, #respondedAt = :respondedAt',
+          Key: { inviteId },
+          UpdateExpression:
+            "SET #status = :status, #respondedAt = :respondedAt",
           ExpressionAttributeNames: {
-            '#status': 'status',
-            '#respondedAt': 'respondedAt',
+            "#status": "status",
+            "#respondedAt": "respondedAt",
           },
           ExpressionAttributeValues: {
-            ':status': { S: status },
-            ':respondedAt': { S: now },
+            ":status": { S: status },
+            ":respondedAt": { S: now },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to update invite: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to update invite: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   /**
    * Record attendee leaving a meeting
    */
-  async recordAttendeeLeft(attendeeId: string, meetingId: string, userId: string): Promise<void> {
-    const now = new Date().toISOString()
+  async recordAttendeeLeft(
+    attendeeId: string,
+    meetingId: string,
+    userId: string
+  ): Promise<void> {
+    const now = new Date().toISOString();
     const joinedAtItem = await dynamodbClient.send(
       new QueryCommand({
         TableName: TABLE_NAMES.MEETING_ATTENDEES,
-        IndexName: 'UserIndex',
-        KeyConditionExpression: 'userId = :userId AND meetingId = :meetingId',
+        IndexName: "UserIndex",
+        KeyConditionExpression: "userId = :userId AND meetingId = :meetingId",
         ExpressionAttributeValues: {
-          ':userId': { S: userId },
-          ':meetingId': { S: meetingId },
+          ":userId": { S: userId },
+          ":meetingId": { S: meetingId },
         },
       })
-    )
+    );
 
     if (!joinedAtItem.Items || joinedAtItem.Items.length === 0) {
-      throw new Error(`Attendee record not found`)
+      throw new Error(`Attendee record not found`);
     }
 
-    const attendeeRecord = unmarshall(joinedAtItem.Items[0]) as MeetingAttendee
-    const joinedAt = new Date(attendeeRecord.joinedAt).getTime()
-    const duration = Math.floor((new Date(now).getTime() - joinedAt) / 1000)
+    const attendeeRecord = unmarshall(joinedAtItem.Items[0]) as MeetingAttendee;
+    const joinedAt = new Date(attendeeRecord.joinedAt).getTime();
+    const duration = Math.floor((new Date(now).getTime() - joinedAt) / 1000);
 
     try {
       await dynamodbClient.send(
         new UpdateCommand({
           TableName: TABLE_NAMES.MEETING_ATTENDEES,
-          Key: marshall({ attendeeId }),
-          UpdateExpression: 'SET #leftAt = :leftAt, #duration = :duration',
+          Key: { attendeeId },
+          UpdateExpression: "SET #leftAt = :leftAt, #duration = :duration",
           ExpressionAttributeNames: {
-            '#leftAt': 'leftAt',
-            '#duration': 'duration',
+            "#leftAt": "leftAt",
+            "#duration": "duration",
           },
           ExpressionAttributeValues: {
-            ':leftAt': { S: now },
-            ':duration': { N: duration.toString() },
+            ":leftAt": { S: now },
+            ":duration": { N: duration.toString() },
           },
         })
-      )
+      );
     } catch (error) {
-      throw new Error(`Failed to record attendee left: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Failed to record attendee left: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 }
 
 // Export singleton instance
-export const chimeService = new ChimeService()
+export const chimeService = new ChimeService();

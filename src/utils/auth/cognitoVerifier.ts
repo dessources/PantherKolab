@@ -1,7 +1,6 @@
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { NextResponse } from "next/server";
 import { parameterStore } from "@/lib/parameterStore";
-import { dynamoDb } from "@/lib/dynamodb";
 
 /**
  * Singleton Cognito JWT Verifier instance

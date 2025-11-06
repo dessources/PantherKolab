@@ -76,8 +76,8 @@ export const PUBLIC_PARAMETERS = new Set<ParameterKey>([
   "app-urls/redirect-sign-out",
 
   // AppSync endpoint - public
-  "/appsync/panther-kolab-chats/realtime-api-url",
-  "/appsync/panther-kolab-chats/http-api-url",
+  "appsync/panther-kolab-chats/realtime-api-url",
+  "appsync/panther-kolab-chats/http-api-url",
 
   // Chime config - public
   "chime/max-attendees",

@@ -3,18 +3,25 @@ import { chimeService } from "@/services/chimeService"
 import { authenticateRequest } from "@/utils/auth/cognitoVerifier"
 
 /**
- * POST /api/calls/:sessionId/join-token
- * Generate attendee token for joining a call
+ * POST /api/calls/join-info
+ * Get meeting credentials and join token for a call session
  *
  * Auth: Required (must be invited participant)
- * Params: sessionId
- * Query: timestamp
- * Returns: {success: true, data: {attendeeId: string, joinToken: string}}
+ * Body: { sessionId: string, timestamp: string }
+ * Returns: {
+ *   success: true,
+ *   data: {
+ *     sessionId: string,
+ *     chimeMeetingId: string,
+ *     attendeeId: string,
+ *     joinToken: string,
+ *     callType: string,
+ *     initiatorId: string,
+ *     participants: CallParticipant[]
+ *   }
+ * }
  */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
-) {
+export async function POST(req: NextRequest) {
   try {
     // Authenticate request
     const authResult = await authenticateRequest(req.headers.get("authorization"))
@@ -23,29 +30,30 @@ export async function POST(
     }
     const { userId } = authResult
 
-    // Await params in Next.js 15+
-    const { sessionId } = await params
-    const timestamp = req.nextUrl.searchParams.get("timestamp")
-
-    // Validate sessionId is provided
-    if (!sessionId) {
+    // Parse request body
+    let body
+    try {
+      body = await req.json()
+    } catch {
       return NextResponse.json(
         {
           error: "Bad Request",
-          code: "MISSING_SESSION_ID",
-          message: "sessionId parameter is required",
+          code: "INVALID_JSON",
+          message: "Request body must be valid JSON",
         },
         { status: 400 }
       )
     }
 
-    // Validate timestamp is provided
-    if (!timestamp) {
+    const { sessionId, timestamp } = body
+
+    // Validate required fields
+    if (!sessionId || !timestamp) {
       return NextResponse.json(
         {
           error: "Bad Request",
-          code: "MISSING_TIMESTAMP",
-          message: "timestamp query parameter is required",
+          code: "MISSING_REQUIRED_FIELDS",
+          message: "sessionId and timestamp are required",
         },
         { status: 400 }
       )
@@ -94,23 +102,25 @@ export async function POST(
     // Generate join token using the call's Chime meeting
     const tokenData = await chimeService.generateAttendeeToken(callSession.chimeMeetingId, userId)
 
-    // Note: generateAttendeeToken expects meetingId, but we're using chimeMeetingId
-    // We need to update the call to create a meeting record first or use a different approach
-    // For now, we'll create the token directly with Chime
-
+    // Return complete join info needed for Chime SDK initialization
     return NextResponse.json(
       {
         success: true,
         data: {
+          sessionId: callSession.sessionId,
+          chimeMeetingId: callSession.chimeMeetingId,
           attendeeId: tokenData.attendeeId,
           joinToken: tokenData.joinToken,
+          callType: callSession.callType,
+          initiatorId: callSession.initiatorId,
+          participants: callSession.participants,
         },
         timestamp: new Date().toISOString(),
       },
       { status: 200 }
     )
   } catch (error) {
-    console.error("Error generating join token:", error)
+    console.error("Error getting join info:", error)
 
     if (error instanceof Error) {
       if (error.message.includes("quota") || error.message.includes("Quota")) {
@@ -134,13 +144,24 @@ export async function POST(
           { status: 400 }
         )
       }
+
+      if (error.message.includes("access")) {
+        return NextResponse.json(
+          {
+            error: "Forbidden",
+            code: "NO_ACCESS",
+            message: error.message,
+          },
+          { status: 403 }
+        )
+      }
     }
 
     return NextResponse.json(
       {
         error: "Internal Server Error",
         code: "INTERNAL_ERROR",
-        message: "Failed to generate join token. Please try again later.",
+        message: "Failed to get join info. Please try again later.",
       },
       { status: 500 }
     )

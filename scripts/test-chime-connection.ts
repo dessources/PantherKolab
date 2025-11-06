@@ -123,10 +123,20 @@ async function testChimeConnection() {
     if (testMeetingId) {
       try {
         console.log("🧹 Attempting to clean up test meeting...");
-        const cleanupCommand = new DeleteMeetingCommand({
+        let cleanupCommand = new DeleteMeetingCommand({
           MeetingId: testMeetingId,
         });
+
         await chimeClient.send(cleanupCommand);
+
+        cleanupCommand = new DeleteMeetingCommand({
+          MeetingId: "c091d81e-e589-4a56-9559-49166b5b2713",
+        });
+
+        cleanupCommand = new DeleteMeetingCommand({
+          MeetingId: "9a61c73c-1a2a-4f68-90d7-22e994612713",
+        });
+
         console.log("   ✅ Test meeting cleaned up\n");
       } catch {
         console.log(

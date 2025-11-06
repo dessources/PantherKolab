@@ -12,7 +12,7 @@ import { authenticateRequest } from "@/utils/auth/cognitoVerifier"
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   try {
     // Authenticate request
@@ -22,7 +22,8 @@ export async function GET(
     }
     const { userId } = authResult
 
-    const sessionId = params.sessionId
+    // Await params in Next.js 15+
+    const { sessionId } = await params
     const timestamp = req.nextUrl.searchParams.get("timestamp")
 
     // Validate sessionId is provided
