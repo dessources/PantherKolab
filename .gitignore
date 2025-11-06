@@ -27,6 +27,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+parameter-script-log.txt
 
 # local env files
 .env
@@ -57,3 +58,4 @@ prompt.md
 BACKEND_TASKS_Antoine.md
 FRONTEND_TASKS_Ousman.md
 BACKEND_TASKS_VIDEO_CALLS.md
+Video-Audio-call-feature.md  
