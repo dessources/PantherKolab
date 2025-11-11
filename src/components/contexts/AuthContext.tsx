@@ -208,14 +208,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getAccessToken = async () => {
-    try {
-      const session = await fetchAuthSession();
-      return session.tokens?.accessToken?.toString() || null;
-    } catch {
-      return null;
-    }
-  };
+const getAccessToken = async () => {
+  try {
+    // Force fetching the latest session
+    const session = await fetchAuthSession({ forceRefresh: true });
+    return session.tokens?.accessToken?.toString() || null;
+  } catch (err) {
+    console.error("Failed to get access token:", err);
+    return null;
+  }
+};
 
   const clearError = () => {
     setError("");

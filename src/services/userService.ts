@@ -2,13 +2,13 @@
 import { dynamoDb } from "../lib/dynamodb"
 import { PutCommand, GetCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb'
 import {
-  UserProfile,
   CreateUserInput,
   UpdateUserInput,
   TABLE_NAMES,
   INDEX_NAMES,
   AcademicYear
 } from "../types/database"
+import { UserProfile } from "@/types/UserProfile"
 
 const TABLE_NAME = TABLE_NAMES.USERS
 
@@ -26,8 +26,7 @@ export const userService = {
       fullName: `${userData.firstName} ${userData.lastName}`.trim(),
       emailVerified: false,
       profilePicture: null,
-      major: null,
-      year: null,
+      major: 'Undeclared',
       bio: null,
       interests: [],
       portfolioUrl: null,

@@ -1,26 +1,7 @@
 // Database Models for PantherKolab DynamoDB Tables
 
-/**
- * User Profile
- * Table: PantherKolab-Users-{env}
- * Primary Key: userId (Cognito sub)
- */
-export interface UserProfile {
-  userId: string              // Partition key (Cognito sub)
-  email: string              // FIU email address
-  firstName: string          // User's first name
-  lastName: string           // User's last name
-  fullName: string           // Combined full name
-  emailVerified: boolean     // Email verification status
-  profilePicture: string | null  // S3 URL to profile picture
-  major: string | null       // Academic major
-  year: AcademicYear | null  // Academic year
-  bio: string | null         // Personal bio (max 500 chars)
-  interests: string[]        // Array of interests/tags
-  portfolioUrl: string | null // Personal portfolio/website
-  createdAt: string          // ISO timestamp
-  updatedAt: string          // ISO timestamp
-}
+import { UserProfile } from "./UserProfile"
+
 
 export type AcademicYear = 'Freshman' | 'Sophomore' | 'Junior' | 'Senior' | 'Graduate'
 
