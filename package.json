@@ -21,6 +21,7 @@
     "aws-amplify": "^6.15.7",
     "aws-jwt-verify": "^5.1.1",
     "dotenv": "^17.2.3",
+    "emoji-picker-react": "^4.15.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.553.0",
     "next": "15.5.4",
