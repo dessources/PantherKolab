@@ -1,317 +1,455 @@
 /**
  * useMessages Hook
- * 
- * Custom hook for managing messages in a conversation with real-time updates.
+ *
+ * Custom hook for managing messages with real-time updates via AppSync.
  * Handles:
- * - Loading message history from API
- * - Subscribing to real-time messages via Socket.IO
+ * - Loading message history from API (once per conversation)
+ * - Subscribing to real-time messages AND typing via AppSync /chats/{userId}
+ * - Persisting messages in memory across conversation switches
  * - Sending messages with optimistic updates
- * - Error handling and cleanup
+ * - Typing indicators
  */
 
+"use client";
+
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSocket } from "./useSocket";
+import { subscribeToUserMessages } from "@/lib/appSync/appsync-client";
 import type { Message } from "@/types/database";
+import type {
+  MessageSentEvent,
+  UserTypingEvent,
+  UserStoppedTypingEvent,
+} from "@/types/appsync-events";
 
 interface UseMessagesOptions {
-    conversationId: string | null;
-    currentUserId?: string;
+  conversationId: string | null;
+  currentUserId: string;
+}
+
+interface TypingUser {
+  userId: string;
+  conversationId: string;
+  timestamp: number;
 }
 
 interface UseMessagesReturn {
-    messages: Message[];
-    loading: boolean;
-    error: Error | null;
-    sendMessage: (content: string, type?: "TEXT" | "AUDIO" | "IMAGE" | "VIDEO" | "FILE") => Promise<void>;
-    refreshMessages: () => Promise<void>;
+  messages: Message[];
+  typingUsers: TypingUser[];
+  loading: boolean;
+  error: Error | null;
+  isConnected: boolean;
+  sendMessage: (
+    content: string,
+    type?: "TEXT" | "AUDIO" | "IMAGE" | "VIDEO" | "FILE"
+  ) => Promise<void>;
+  startTyping: () => Promise<void>;
+  stopTyping: () => Promise<void>;
+  refreshMessages: () => Promise<void>;
 }
 
+// In-memory cache for messages across conversation switches
+// This persists messages so they don't need to be re-fetched
+const messageCache = new Map<string, Message[]>();
+const fetchedConversations = new Set<string>();
+
 /**
- * Hook to manage messages for a conversation
- * 
- * @param conversationId - The ID of the conversation (null if no conversation selected)
- * @param currentUserId - The current user's ID (optional, for optimistic updates)
- * @returns Messages, loading state, error, and send function
- * 
+ * Hook to manage messages for a conversation with AppSync real-time
+ *
+ * @param conversationId - The ID of the conversation (null if none selected)
+ * @param currentUserId - The current user's ID for subscriptions
+ * @returns Messages, typing users, loading state, error, and actions
+ *
  * @example
  * ```tsx
- * const { messages, loading, sendMessage } = useMessages({
+ * const { messages, typingUsers, loading, sendMessage } = useMessages({
  *   conversationId: "conv-123",
  *   currentUserId: "user-1"
  * });
  * ```
  */
 export function useMessages({
-    conversationId,
-    currentUserId,
+  conversationId,
+  currentUserId,
 }: UseMessagesOptions): UseMessagesReturn {
-    const { socket, isConnected } = useSocket();
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-    // Track pending optimistic messages
-    const optimisticMessageIds = useRef<Set<string>>(new Set());
-    // Track message sent confirmations we're waiting for
-    const pendingConfirmations = useRef<Map<string, Message>>(new Map());
+  // Track pending optimistic messages
+  const optimisticMessageIds = useRef<Set<string>>(new Set());
+  // Track typing timeouts for auto-clearing
+  const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Track subscription
+  const subscriptionRef = useRef<{ close: () => void } | null>(null);
+  // Store conversationId in ref to avoid stale closures
+  const conversationIdRef = useRef(conversationId);
+  conversationIdRef.current = conversationId;
 
-    /**
-     * Fetch message history from API
-     */
-    const fetchMessages = useCallback(async () => {
-        if (!conversationId) {
-            setMessages([]);
-            setLoading(false);
-            return;
+  /**
+   * Fetch message history from API (only if not already fetched)
+   */
+  const fetchMessages = useCallback(
+    async (forceRefresh = false) => {
+      if (!conversationId) {
+        setMessages([]);
+        return;
+      }
+
+      // Check cache first (unless force refresh)
+      if (!forceRefresh && fetchedConversations.has(conversationId)) {
+        const cached = messageCache.get(conversationId) || [];
+        setMessages(cached);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/messages/${conversationId}`, {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch messages: ${response.statusText}`);
         }
 
-        setLoading(true);
-        setError(null);
+        const data = await response.json();
+        const fetchedMessages: Message[] = Array.isArray(data.messages)
+          ? data.messages
+          : Array.isArray(data)
+            ? data
+            : [];
 
-        try {
-            const response = await fetch(`/api/messages/${conversationId}`, {
-                method: "GET",
-                credentials: "include", // Include cookies for auth
-            });
+        // Update cache
+        messageCache.set(conversationId, fetchedMessages);
+        fetchedConversations.add(conversationId);
 
-            if (!response.ok) {
-                throw new Error(`Failed to fetch messages: ${response.statusText}`);
-            }
+        setMessages(fetchedMessages);
+      } catch (err) {
+        const error =
+          err instanceof Error ? err : new Error("Failed to load messages");
+        setError(error);
+        console.error("Error fetching messages:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [conversationId]
+  );
 
-            const data = await response.json();
+  /**
+   * Handle incoming chat events (messages + typing)
+   */
+  const handleChatEvent = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (event: any) => {
+      // Handle message events
+      if (event.type === "MESSAGE_SENT") {
+        const messageEvent = event as MessageSentEvent;
+        const newMessage = messageEvent.data as unknown as Message;
 
-            // Assume API returns messages in chronological order (oldest first)
-            // Reverse to show newest at bottom
-            const fetchedMessages = Array.isArray(data.messages)
-                ? data.messages
-                : Array.isArray(data)
-                    ? data
-                    : [];
+        // Update cache for this conversation
+        const convId = newMessage.conversationId;
+        const cached = messageCache.get(convId) || [];
 
-            setMessages(fetchedMessages);
-        } catch (err) {
-            const error = err instanceof Error ? err : new Error("Failed to load messages");
-            setError(error);
-            console.error("Error fetching messages:", error);
-        } finally {
-            setLoading(false);
+        // Check for duplicate or optimistic update replacement
+        const tempId = (messageEvent.data as { tempId?: string }).tempId;
+        const existingIndex = cached.findIndex(
+          (m) =>
+            m.messageId === newMessage.messageId ||
+            (tempId && m.messageId === tempId)
+        );
+
+        if (existingIndex >= 0) {
+          // Replace optimistic message with real one
+          const oldId = cached[existingIndex].messageId;
+          cached[existingIndex] = newMessage;
+          optimisticMessageIds.current.delete(oldId);
+        } else {
+          cached.push(newMessage);
         }
-    }, [conversationId]);
 
-    /**
-     * Join Socket.IO room for this conversation
-     */
-    const joinConversation = useCallback(() => {
-        if (!conversationId || !isConnected) return;
+        messageCache.set(convId, cached);
 
-        socket.emit("join-conversation", conversationId);
-    }, [conversationId, isConnected, socket]);
+        // Update state if this is the current conversation
+        if (convId === conversationIdRef.current) {
+          setMessages([...cached]);
+        }
+      }
 
-    /**
-     * Leave Socket.IO room for this conversation
-     */
-    const leaveConversation = useCallback(() => {
-        if (!conversationId || !isConnected) return;
+      // Handle typing events
+      if (
+        event.type === "USER_TYPING" ||
+        event.type === "USER_STOPPED_TYPING"
+      ) {
+        const typingEvent = event as UserTypingEvent | UserStoppedTypingEvent;
+        const { userId: typingUserId, conversationId: typingConvId } =
+          typingEvent.data;
 
-        socket.emit("leave-conversation", conversationId);
-    }, [conversationId, isConnected, socket]);
-
-    /**
-     * Handle new message received via Socket.IO
-     */
-    const handleNewMessage = useCallback(
-        (message: Message) => {
-            // Only add if it's for this conversation
-            if (message.conversationId !== conversationId) return;
-
-            // Check if we already have this message (avoid duplicates)
-            setMessages((prev) => {
-                const exists = prev.some((m) => m.messageId === message.messageId);
-                if (exists) return prev;
-                return [...prev, message];
-            });
-
-            // If this was an optimistic message we sent, remove it from tracking
-            if (optimisticMessageIds.current.has(message.messageId)) {
-                optimisticMessageIds.current.delete(message.messageId);
+        if (event.type === "USER_TYPING") {
+          setTypingUsers((prev) => {
+            const existing = prev.find(
+              (u) =>
+                u.userId === typingUserId && u.conversationId === typingConvId
+            );
+            if (existing) {
+              return prev.map((u) =>
+                u.userId === typingUserId && u.conversationId === typingConvId
+                  ? { ...u, timestamp: Date.now() }
+                  : u
+              );
             }
-        },
-        [conversationId]
-    );
+            return [
+              ...prev,
+              {
+                userId: typingUserId,
+                conversationId: typingConvId,
+                timestamp: Date.now(),
+              },
+            ];
+          });
 
-    /**
-     * Handle message sent confirmation
-     */
-    const handleMessageSent = useCallback(
-        (confirmation: { messageId: string; conversationId: string; timestamp: string | Date; status: "sent" | "delivered" }) => {
-            // Find the optimistic message and update it
-            const optimisticMsg = pendingConfirmations.current.get(confirmation.messageId);
+          // Clear after 3 seconds if no update
+          const key = `${typingUserId}-${typingConvId}`;
+          const existingTimeout = typingTimeoutRef.current.get(key);
+          if (existingTimeout) clearTimeout(existingTimeout);
 
-            if (optimisticMsg) {
-                setMessages((prev) =>
-                    prev.map((msg) =>
-                        msg.messageId === confirmation.messageId
-                            ? {
-                                ...msg,
-                                timestamp: typeof confirmation.timestamp === "string"
-                                    ? confirmation.timestamp
-                                    : confirmation.timestamp.toISOString(),
-                                status: confirmation.status,
-                            }
-                            : msg
+          typingTimeoutRef.current.set(
+            key,
+            setTimeout(() => {
+              setTypingUsers((prev) =>
+                prev.filter(
+                  (u) =>
+                    !(
+                      u.userId === typingUserId &&
+                      u.conversationId === typingConvId
                     )
-                );
-                pendingConfirmations.current.delete(confirmation.messageId);
-            }
-        },
-        []
-    );
+                )
+              );
+            }, 3000)
+          );
+        } else {
+          // USER_STOPPED_TYPING
+          setTypingUsers((prev) =>
+            prev.filter(
+              (u) =>
+                !(
+                  u.userId === typingUserId && u.conversationId === typingConvId
+                )
+            )
+          );
+          const key = `${typingUserId}-${typingConvId}`;
+          const timeout = typingTimeoutRef.current.get(key);
+          if (timeout) clearTimeout(timeout);
+        }
+      }
+    },
+    []
+  );
 
-    /**
-     * Handle Socket.IO errors
-     */
-    const handleError = useCallback((err: Error) => {
-        console.error("Socket.IO error in useMessages:", err);
-        setError(err);
-    }, []);
+  /**
+   * Subscribe to AppSync /chats/{userId} channel
+   * This is a single subscription that handles ALL conversations
+   */
+  useEffect(() => {
+    if (!currentUserId) return;
 
-    /**
-     * Send a message
-     */
-    const sendMessage = useCallback(
-        async (content: string, type: "TEXT" | "AUDIO" | "IMAGE" | "VIDEO" | "FILE" = "TEXT") => {
-            if (!conversationId) {
-                throw new Error("No conversation selected");
-            }
+    const subscribe = async () => {
+      try {
+        // Close existing subscription if any
+        subscriptionRef.current?.close();
 
-            if (!currentUserId) {
-                throw new Error("Current user ID not provided");
-            }
+        // Subscribe to user's chat channel
+        subscriptionRef.current = await subscribeToUserMessages(
+          currentUserId,
+          handleChatEvent,
+          (err) => {
+            console.error("[useMessages] Subscription error:", err);
+            setError(err);
+            setIsConnected(false);
+          }
+        );
 
-            if (!content.trim()) {
-                return; // Don't send empty messages
-            }
+        setIsConnected(true);
+        console.log(`[useMessages] Subscribed to /chats/${currentUserId}`);
+      } catch (err) {
+        console.error("[useMessages] Failed to subscribe:", err);
+        setError(
+          err instanceof Error ? err : new Error("Subscription failed")
+        );
+        setIsConnected(false);
+      }
+    };
 
-            if (!isConnected) {
-                throw new Error("Socket not connected. Please check your connection.");
-            }
+    subscribe();
 
-            // Create optimistic message
-            const optimisticId = `temp-${Date.now()}-${Math.random()}`;
-            const optimisticMessage: Message = {
-                conversationId,
-                timestamp: new Date().toISOString(),
-                messageId: optimisticId,
-                senderId: currentUserId,
-                type,
-                content: content.trim(),
-                mediaUrl: null,
-                fileName: null,
-                fileSize: null,
-                duration: null,
-                readBy: [],
-                reactions: {},
-                replyTo: null,
-                deleted: false,
-                createdAt: new Date().toISOString(),
-            };
+    return () => {
+      subscriptionRef.current?.close();
+      subscriptionRef.current = null;
+    };
+  }, [currentUserId, handleChatEvent]);
 
-            // Add optimistic message immediately
-            setMessages((prev) => [...prev, optimisticMessage]);
-            optimisticMessageIds.current.add(optimisticId);
-            pendingConfirmations.current.set(optimisticId, optimisticMessage);
+  /**
+   * Load messages when conversation changes
+   */
+  useEffect(() => {
+    if (conversationId) {
+      // Load from cache or fetch
+      fetchMessages();
+    } else {
+      setMessages([]);
+    }
+  }, [conversationId, fetchMessages]);
 
-            try {
-                // Emit send-message event
-                socket.emit("send-message", {
-                    conversationId,
-                    content: content.trim(),
-                    senderId: currentUserId,
-                    type,
-                });
+  /**
+   * Send a message
+   */
+  const sendMessage = useCallback(
+    async (
+      content: string,
+      type: "TEXT" | "AUDIO" | "IMAGE" | "VIDEO" | "FILE" = "TEXT"
+    ) => {
+      if (!conversationId) {
+        throw new Error("No conversation selected");
+      }
 
-                // If confirmation doesn't come within 5 seconds, remove optimistic message
-                setTimeout(() => {
-                    if (pendingConfirmations.current.has(optimisticId)) {
-                        // Message wasn't confirmed, remove optimistic version
-                        setMessages((prev) => prev.filter((msg) => msg.messageId !== optimisticId));
-                        optimisticMessageIds.current.delete(optimisticId);
-                        pendingConfirmations.current.delete(optimisticId);
-                        setError(new Error("Message failed to send. Please try again."));
-                    }
-                }, 5000);
-            } catch (err) {
-                // Remove optimistic message on error
-                setMessages((prev) => prev.filter((msg) => msg.messageId !== optimisticId));
-                optimisticMessageIds.current.delete(optimisticId);
-                pendingConfirmations.current.delete(optimisticId);
+      if (!currentUserId) {
+        throw new Error("Current user ID not provided");
+      }
 
-                const error = err instanceof Error ? err : new Error("Failed to send message");
-                setError(error);
-                throw error;
-            }
-        },
-        [conversationId, currentUserId, isConnected, socket]
-    );
+      if (!content.trim()) {
+        return;
+      }
 
-    /**
-     * Refresh messages (reload from API)
-     */
-    const refreshMessages = useCallback(async () => {
-        await fetchMessages();
-    }, [fetchMessages]);
+      // Create optimistic message
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+      const optimisticMessage: Message = {
+        conversationId,
+        timestamp: new Date().toISOString(),
+        messageId: tempId,
+        senderId: currentUserId,
+        type,
+        content: content.trim(),
+        mediaUrl: null,
+        fileName: null,
+        fileSize: null,
+        duration: null,
+        readBy: [],
+        reactions: {},
+        replyTo: null,
+        deleted: false,
+        createdAt: new Date().toISOString(),
+      };
 
-    // Load messages when conversation changes
-    useEffect(() => {
-        fetchMessages();
-    }, [fetchMessages]);
+      // Add to cache and state immediately
+      const cached = messageCache.get(conversationId) || [];
+      cached.push(optimisticMessage);
+      messageCache.set(conversationId, cached);
+      setMessages([...cached]);
+      optimisticMessageIds.current.add(tempId);
 
-    // Join/leave conversation room when conversation changes
-    useEffect(() => {
-        if (isConnected && conversationId) {
-            joinConversation();
+      try {
+        const response = await fetch("/api/messages/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            conversationId,
+            content: content.trim(),
+            type,
+            tempId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to send message");
         }
 
-        return () => {
-            if (conversationId) {
-                leaveConversation();
-            }
-        };
-    }, [conversationId, isConnected, joinConversation, leaveConversation]);
+        // Real message will arrive via AppSync subscription
+      } catch (err) {
+        // Remove optimistic message on error
+        const cached = messageCache.get(conversationId) || [];
+        const filtered = cached.filter((m) => m.messageId !== tempId);
+        messageCache.set(conversationId, filtered);
+        setMessages([...filtered]);
+        optimisticMessageIds.current.delete(tempId);
 
-    // Set up Socket.IO listeners
-    useEffect(() => {
-        if (!isConnected) return;
+        const error =
+          err instanceof Error ? err : new Error("Failed to send message");
+        setError(error);
+        throw error;
+      }
+    },
+    [conversationId, currentUserId]
+  );
 
-        socket.on("new-message", handleNewMessage);
-        socket.on("message-sent", handleMessageSent);
-        socket.on("error", handleError);
+  /**
+   * Send typing indicator
+   */
+  const startTyping = useCallback(async () => {
+    if (!conversationId) return;
 
-        return () => {
-            socket.off("new-message", handleNewMessage);
-            socket.off("message-sent", handleMessageSent);
-            socket.off("error", handleError);
-        };
-    }, [isConnected, socket, handleNewMessage, handleMessageSent, handleError]);
+    try {
+      await fetch("/api/messages/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ conversationId, isTyping: true }),
+      });
+    } catch (err) {
+      console.error("Failed to send typing indicator:", err);
+    }
+  }, [conversationId]);
 
-    // Cleanup optimistic messages on unmount
-    useEffect(() => {
-        return () => {
-            optimisticMessageIds.current.clear();
-            pendingConfirmations.current.clear();
-        };
-    }, []);
+  /**
+   * Stop typing indicator
+   */
+  const stopTyping = useCallback(async () => {
+    if (!conversationId) return;
 
-    return {
-        messages,
-        loading,
-        error,
-        sendMessage,
-        refreshMessages,
+    try {
+      await fetch("/api/messages/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ conversationId, isTyping: false }),
+      });
+    } catch (err) {
+      console.error("Failed to send stop typing indicator:", err);
+    }
+  }, [conversationId]);
+
+  /**
+   * Force refresh messages from API
+   */
+  const refreshMessages = useCallback(async () => {
+    await fetchMessages(true);
+  }, [fetchMessages]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const timeoutMap = typingTimeoutRef.current;
+    return () => {
+      timeoutMap.forEach((timeout) => clearTimeout(timeout));
+      timeoutMap.clear();
     };
+  }, []);
+
+  return {
+    messages,
+    typingUsers: typingUsers.filter((u) => u.conversationId === conversationId),
+    loading,
+    error,
+    isConnected,
+    sendMessage,
+    startTyping,
+    stopTyping,
+    refreshMessages,
+  };
 }
 
 export default useMessages;
-
-
-

@@ -1,6 +1,5 @@
 import { dynamoDb } from "@/lib/dynamodb";
 import { PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { publishEvent } from "@/lib/appsync-events";
 import type { Message } from "@/types/database";
 
 interface CreateMessageInput {
@@ -36,7 +35,7 @@ export const messageService = {
       createdAt: new Date().toISOString(),
     };
 
-    // 2. Save to DynamoDB FIRST (so we don't lose data)
+    // Save to DynamoDB
     await dynamoDb.send(
       new PutCommand({
         TableName: process.env.DYNAMODB_MESSAGES_TABLE,
@@ -44,15 +43,7 @@ export const messageService = {
       })
     );
 
-    // 3. Publish to AppSync (real-time broadcast)
-    await publishEvent({
-      channel: `/conversations/${input.conversationId}`,
-      event: {
-        type: "MESSAGE_SENT",
-        data: message,
-      },
-    });
-
+    // Note: Real-time publishing is handled by the API route using user-centric channels
     return message;
   },
 
@@ -88,14 +79,7 @@ export const messageService = {
       })
     );
 
-    // Publish delete event
-    await publishEvent({
-      channel: `/conversations/${conversationId}`,
-      event: {
-        type: "MESSAGE_DELETED",
-        data: { messageId, conversationId },
-      },
-    });
+    // Note: Real-time publishing is handled by the API route using user-centric channels
   },
 
   async markAsRead(
@@ -139,13 +123,6 @@ export const messageService = {
       })
     );
 
-    // Publish read event
-    await publishEvent({
-      channel: `/conversations/${conversationId}`,
-      event: {
-        type: "MESSAGE_READ",
-        data: { messageId, conversationId, userId },
-      },
-    });
+    // Note: Real-time publishing is handled by the API route using user-centric channels
   },
 };

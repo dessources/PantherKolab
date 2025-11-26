@@ -10,7 +10,7 @@ interface MeetingControlsProps {
   onToggleParticipants?: () => void
   onToggleChat?: () => void
   onInviteUsers?: () => void
-  isCallInitiator?: boolean
+  isCallOwner?: boolean
   onEndCall: () => void
   onLeaveCall?: () => void
 }
@@ -23,7 +23,7 @@ export function MeetingControls({
   onToggleParticipants,
   onToggleChat,
   onInviteUsers,
-  isCallInitiator,
+  isCallOwner,
   onEndCall,
   onLeaveCall,
 }: MeetingControlsProps) {
@@ -121,8 +121,8 @@ export function MeetingControls({
             </button>
           )}
 
-          {/* End Call Button - shown to call initiators only */}
-          {isCallInitiator && (
+          {/* End Call Button - shown to call owners only */}
+          {isCallOwner && (
             <button
               onClick={onEndCall}
               className="px-6 py-4 rounded-lg bg-red-500 hover:bg-red-600 text-white flex items-center gap-2 transition-colors font-medium"

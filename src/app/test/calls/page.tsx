@@ -1,156 +1,86 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useCallback } from "react";
 import { MeetingView } from "@/components/calls/MeetingView";
 import { IncomingCallModal } from "@/components/calls/IncomingCallModal";
-
-import io, { Socket } from "socket.io-client";
+import { useCalls, type MeetingData } from "@/hooks/useCalls";
 import { useAuth } from "@/components/contexts/AuthContext";
-import { BASENAME } from "@/lib/utils";
 
 export default function MeetingUITestPage() {
-  const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [showMeeting, setShowMeeting] = useState(false);
   const [callType, setCallType] = useState<"DIRECT" | "GROUP">("DIRECT");
   const [participants, setParticipants] = useState("");
-  const [accessToken, setAccessToken] = useState("");
-  const [isRinging, setIsRinging] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [callerName, setCallerName] = useState("");
-  const [callerId, setCallerId] = useState("");
-  const [sessionId, setSessionId] = useState("");
-  const [isCallInitiator, setIsCallInitiator] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [meetingData, setMeetingData] = useState<any>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const [meetingData, setMeetingData] = useState<MeetingData | null>(null);
 
   const auth = useAuth();
-  const localUserId = auth.user?.userId;
+  const localUserId = auth.user?.userId || "";
+  const isAuthenticated = auth.isAuthenticated;
 
-  useEffect(() => {
-    auth.getAccessToken().then((token) => setAccessToken(token as string));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Callbacks for useCalls hook
+  const handleCallConnected = useCallback((data: MeetingData) => {
+    console.log("Call connected! MeetingId:", data.meeting);
+    setMeetingData(data);
+    setShowMeeting(true);
   }, []);
 
-  useEffect(() => {
-    if (!accessToken) return;
+  const handleCallEnded = useCallback((sessionId: string, endedBy: string) => {
+    console.log(`Call ${sessionId} ended by ${endedBy}`);
+    setShowMeeting(false);
+    setMeetingData(null);
+    alert("Call has ended");
+  }, []);
 
-    socketRef.current = io(BASENAME, {
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      auth: {
-        token: accessToken,
-      },
-    });
+  const handleCallRejected = useCallback((sessionId: string) => {
+    console.log("Call rejected:", sessionId);
+    alert("Call was declined");
+  }, []);
 
-    // Listen for call ringing (after initiating)
-    socketRef.current.on(
-      "call-ringing",
-      (data: { sessionId: string; recipientId: string }) => {
-        console.log("Call is ringing. SessionId:", data.sessionId);
-        setSessionId(data.sessionId);
-        setIsCallInitiator(true); // This user initiated the call
-      }
-    );
+  const handleCallCancelled = useCallback(
+    (sessionId: string, cancelledBy: string) => {
+      console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
+      // Incoming call modal is automatically dismissed by the hook
+    },
+    []
+  );
 
-    // Listen for incoming calls
-    socketRef.current.on(
-      "incoming-call",
-      (data: {
-        sessionId: string;
-        callerId: string;
-        callerName: string;
-        callType: string;
-      }) => {
-        console.log("Got a call from " + data.callerName);
-        setSessionId(data.sessionId);
-        setCallerId(data.callerId);
-        setCallerName(data.callerName);
-        setCallType(data.callType as "DIRECT" | "GROUP");
-        setIsCallInitiator(false); // This user is receiving the call
-        setShowIncomingCall(true);
-      }
-    );
+  const handleParticipantLeft = useCallback(
+    (sessionId: string, userId: string, newOwnerId?: string) => {
+      console.log(
+        `Participant ${userId} left call ${sessionId}${newOwnerId ? `, new owner: ${newOwnerId}` : ""}`
+      );
+    },
+    []
+  );
 
-    // Listen for call connected (meeting created)
-    socketRef.current.on(
-      "call-connected",
-      (data: {
-        sessionId: string;
-        meeting: unknown;
-        attendees: Record<string, unknown>;
-      }) => {
-        console.log("Call connected! MeetingId:", data.meeting);
-        setIsRinging(false);
-        setIsConnecting(false);
-        setMeetingData(data);
-        setShowMeeting(true);
-      }
-    );
+  const handleError = useCallback((error: string) => {
+    console.error("Call error:", error);
+    alert("Call error: " + error);
+  }, []);
 
-    // Listen for call rejected
-    socketRef.current.on(
-      "call-rejected",
-      (data: { userId: string; sessionId: string }) => {
-        console.log("Call rejected by " + data.userId);
-        setIsRinging(false);
-        setIsConnecting(false);
-        alert("Call was declined");
-      }
-    );
+  // Use the useCalls hook - only connect when fully authenticated
+  const {
+    isConnected,
+    activeCall,
+    isRinging,
+    incomingCall,
+    isCallOwner,
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    cancelCall,
+    leaveCall,
+    endCall,
+  } = useCalls({
+    userId: isAuthenticated ? localUserId : "",
+    onCallConnected: handleCallConnected,
+    onCallEnded: handleCallEnded,
+    onCallRejected: handleCallRejected,
+    onCallCancelled: handleCallCancelled,
+    onParticipantLeft: handleParticipantLeft,
+    onError: handleError,
+  });
 
-    // Listen for connection failures
-    socketRef.current.on(
-      "call-connection-failed",
-      (data: { error: string; sessionId: string }) => {
-        console.error("Call connection failed:", data.error);
-        setIsRinging(false);
-        setIsConnecting(false);
-        alert("Failed to connect call: " + data.error);
-      }
-    );
-
-    // Listen for call errors
-    socketRef.current.on("call-error", (data: { error: string }) => {
-      console.error("Call error:", data.error);
-      setIsRinging(false);
-      setIsConnecting(false);
-      alert("Call error: " + data.error);
-    });
-
-    // Listen for call ended (when someone ends the call for everyone)
-    socketRef.current.on(
-      "call-ended",
-      (data: { sessionId: string; endedBy: string }) => {
-        console.log(`Call ended by ${data.endedBy}`);
-        setShowMeeting(false);
-        setShowIncomingCall(false);
-        setIsRinging(false);
-        setIsConnecting(false);
-        setMeetingData(null);
-        alert("Call has ended");
-      }
-    );
-
-    // Listen for participant left (when someone leaves without ending)
-    socketRef.current.on(
-      "participant-left",
-      (data: { sessionId: string; userId: string }) => {
-        console.log(`Participant ${data.userId} left the call`);
-        // In a real implementation, we would remove this participant from the UI
-        // For now, just log it
-      }
-    );
-
-    return () => {
-      socketRef.current?.disconnect();
-    };
-  }, [accessToken]);
-
-  // Mock participants
+  // Mock participants for UI testing
   const mockParticipants = [
     {
       id: "1",
@@ -190,6 +120,101 @@ export default function MeetingUITestPage() {
     },
   ].slice(0, 6);
 
+  // Handle initiating a call
+  const handleInitiateCall = async () => {
+    if (!participants.trim()) {
+      alert("Please enter a participant ID");
+      return;
+    }
+
+    try {
+      const participantIds = [localUserId, participants.trim()];
+      await initiateCall({
+        participantIds,
+        callType,
+      });
+    } catch (error) {
+      console.error("Failed to initiate call:", error);
+      alert(
+        "Failed to initiate call: " +
+          (error instanceof Error ? error.message : "Unknown error")
+      );
+    }
+  };
+
+  // Handle accepting incoming call
+  const handleAcceptCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      await acceptCall(incomingCall.sessionId);
+    } catch (error) {
+      console.error("Failed to accept call:", error);
+      alert(
+        "Failed to accept call: " +
+          (error instanceof Error ? error.message : "Unknown error")
+      );
+    }
+  };
+
+  // Handle rejecting incoming call
+  const handleRejectCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      await rejectCall(incomingCall.sessionId, incomingCall.callerId);
+    } catch (error) {
+      console.error("Failed to reject call:", error);
+    }
+  };
+
+  // Handle ending the call (only owner can do this)
+  const handleEndCall = async () => {
+    if (!activeCall) return;
+
+    try {
+      await endCall(activeCall.sessionId);
+      setShowMeeting(false);
+      setMeetingData(null);
+    } catch (error) {
+      console.error("Failed to end call:", error);
+      alert(
+        "Failed to end call: " +
+          (error instanceof Error ? error.message : "Unknown error")
+      );
+    }
+  };
+
+  // Handle leaving the call (anyone can do this)
+  const handleLeaveCall = async () => {
+    if (!activeCall) return;
+
+    try {
+      // For group calls, if we're the owner, we'd need to specify a new owner
+      // For now, just leave without specifying (works for DIRECT calls)
+      await leaveCall(activeCall.sessionId);
+      setShowMeeting(false);
+      setMeetingData(null);
+    } catch (error) {
+      console.error("Failed to leave call:", error);
+      alert(
+        "Failed to leave call: " +
+          (error instanceof Error ? error.message : "Unknown error")
+      );
+    }
+  };
+
+  // Handle cancelling a ringing call
+  const handleCancelCall = async () => {
+    if (!activeCall) return;
+
+    try {
+      await cancelCall(activeCall.sessionId);
+    } catch (error) {
+      console.error("Failed to cancel call:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {!showMeeting ? (
@@ -198,9 +223,18 @@ export default function MeetingUITestPage() {
             PantherKolab Meeting UI
           </h1>
           <p className="text-gray-600 mb-8">
-            Professional video call interface based on FIU Virtual Meeting Room
-            design
+            Professional video call interface using AppSync Events
           </p>
+
+          {/* Connection Status */}
+          <div className="mb-6 flex items-center gap-2">
+            <div
+              className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+            />
+            <span className="text-sm text-gray-600">
+              {isConnected ? "Connected to AppSync" : "Disconnected"}
+            </span>
+          </div>
 
           {/* Test Controls */}
           <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
@@ -209,14 +243,14 @@ export default function MeetingUITestPage() {
             </h2>
 
             <div className="space-y-6">
-              {/* Incoming Call Modal Test */}
-              <div className="border-b border-gray-200 pb-6">
+              {/* Meeting View Test */}
+              <div>
                 <h3 className="font-semibold text-lg mb-4 text-gray-800">
-                  1. Incoming Call Modal
+                  {`Call Test - User ID: ${auth.user?.userId || "Not logged in"}`}
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Professional modal with caller avatar, call type indicator,
-                  and action buttons
+                  Enter a user ID to call. Uses AppSync Events for real-time
+                  signaling.
                 </p>
                 <div className="flex gap-4 items-center flex-wrap">
                   <select
@@ -229,61 +263,40 @@ export default function MeetingUITestPage() {
                     <option value="DIRECT">Direct Call</option>
                     <option value="GROUP">Group Call</option>
                   </select>
-                  <button
-                    onClick={() => {
-                      setShowIncomingCall(true);
-                    }}
-                    className="px-6 py-2 bg-[#0066CC] text-white rounded-lg hover:bg-[#0052A3] transition-colors font-medium"
-                  >
-                    Show Incoming Call
-                  </button>
-                </div>
-              </div>
-
-              {/* Meeting View Test */}
-              <div>
-                <h3 className="font-semibold text-lg mb-4 text-gray-800">
-                  {`2. Meeting View. This user's id: ${auth.user?.userId}`}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Full meeting interface with participant grid, header, and
-                  controls
-                </p>
-                <div className="flex gap-4 items-center flex-wrap">
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-gray-700">
-                      Participants:
+                      Recipient ID:
                     </label>
                     <input
                       type="text"
                       value={participants}
                       onChange={(e) => setParticipants(e.target.value)}
-                      className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-transparent"
+                      placeholder="Enter user ID"
+                      className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-transparent"
                     />
                   </div>
-                  <button
-                    onClick={() => {
-                      console.log(
-                        "Socket connected?",
-                        socketRef.current?.connected
-                      );
-                      setIsRinging(true);
-                      socketRef.current?.emit("new-call", {
-                        userId: participants,
-                        callerName: auth.user?.username,
-                        callType: callType,
-                      });
-                    }}
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    disabled={isRinging || isConnecting}
-                  >
-                    {isConnecting
-                      ? "Connecting..."
-                      : isRinging
-                      ? "Ringing..."
-                      : "Call test user 2"}
-                  </button>
+                  {isRinging ? (
+                    <button
+                      onClick={handleCancelCall}
+                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                    >
+                      Cancel Call
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleInitiateCall}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                      disabled={!isConnected || !localUserId}
+                    >
+                      Start Call
+                    </button>
+                  )}
                 </div>
+                {isRinging && (
+                  <p className="mt-2 text-sm text-yellow-600 animate-pulse">
+                    Ringing...
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -297,15 +310,22 @@ export default function MeetingUITestPage() {
               <li className="flex items-start gap-3">
                 <span className="text-green-500 mt-0.5">✓</span>
                 <span>
-                  <strong>Professional Design:</strong> Based on FIU Virtual
-                  Meeting Room with university branding colors
+                  <strong>AppSync Events:</strong> Real-time call signaling via
+                  AWS AppSync Events API
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-green-500 mt-0.5">✓</span>
+                <span>
+                  <strong>Call Ownership:</strong> Only call owners can end
+                  calls; ownership transfer for group calls
                 </span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-green-500 mt-0.5">✓</span>
                 <span>
                   <strong>Participant Tiles:</strong> Responsive grid layout
-                  with name labels and active speaker indicators
+                  with AWS Chime SDK integration
                 </span>
               </li>
               <li className="flex items-start gap-3">
@@ -325,15 +345,8 @@ export default function MeetingUITestPage() {
               <li className="flex items-start gap-3">
                 <span className="text-green-500 mt-0.5">✓</span>
                 <span>
-                  <strong>Visual Feedback:</strong> Mute indicators, active
-                  speaker highlights, and smooth transitions
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-green-500 mt-0.5">✓</span>
-                <span>
-                  <strong>Responsive:</strong> Adapts to different screen sizes
-                  with mobile-first approach
+                  <strong>Call Cancellation:</strong> Caller can cancel before
+                  recipient answers
                 </span>
               </li>
             </ul>
@@ -341,53 +354,31 @@ export default function MeetingUITestPage() {
         </div>
       ) : null}
 
-      {/* Modals/Overlays */}
-      {showIncomingCall && (
+      {/* Incoming Call Modal */}
+      {incomingCall && (
         <IncomingCallModal
-          callerName={callerName}
-          callType={callType}
-          onAccept={() => {
-            setShowIncomingCall(false);
-            setIsConnecting(true);
-            socketRef.current?.emit("accept-call", {
-              sessionId,
-              callerId,
-              callerName,
-            });
-          }}
-          onReject={() => {
-            setShowIncomingCall(false);
-            socketRef.current?.emit("reject-call", { sessionId, callerId });
-          }}
+          callerName={incomingCall.callerName}
+          callType={incomingCall.callType === "AUDIO" ? "DIRECT" : "DIRECT"}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
         />
       )}
 
-      {showMeeting && (
+      {/* Meeting View */}
+      {showMeeting && meetingData && (
         <MeetingView
           meetingTitle="PantherKolab Video Call"
           meetingSubtitle="Florida International University"
           participants={mockParticipants}
-          activeSpeakerId="2" // Dr. Maria Rodriguez is speaking
-          isCallInitiator={isCallInitiator}
-          meeting={meetingData?.meeting}
+          activeSpeakerId="2"
+          isCallOwner={isCallOwner}
+          meeting={meetingData.meeting}
           attendee={
-            localUserId ? meetingData?.attendees?.[localUserId] : undefined
+            localUserId ? meetingData.attendees?.[localUserId] : undefined
           }
           localUserId={localUserId}
-          onEndCall={() => {
-            // End call for everyone
-            socketRef.current?.emit("end-call", { sessionId });
-            setShowMeeting(false);
-            setIsRinging(false);
-            setIsConnecting(false);
-          }}
-          onLeaveCall={() => {
-            // Leave call but keep it active for others
-            socketRef.current?.emit("leave-call", { sessionId });
-            setShowMeeting(false);
-            setIsRinging(false);
-            setIsConnecting(false);
-          }}
+          onEndCall={handleEndCall}
+          onLeaveCall={handleLeaveCall}
           onSettingsClick={() => alert("Settings clicked")}
         />
       )}

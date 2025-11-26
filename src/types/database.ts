@@ -186,6 +186,10 @@ export interface CallParticipant {
   joinedAt: string | null        // ISO timestamp when joined
   leftAt: string | null          // ISO timestamp when left
   status: 'RINGING' | 'JOINED' | 'LEFT' | 'REJECTED' // Participant status
+  becameCallOwner: {             // Tracks if/when this participant became call owner
+    status: boolean              // Whether this participant is currently the call owner
+    timestamp: string | null     // ISO timestamp when they became owner (null if never)
+  } | null
 }
 
 /**
@@ -196,7 +200,7 @@ export type CallType = 'DIRECT' | 'GROUP'
 /**
  * Call Status
  */
-export type CallStatus = 'RINGING' | 'ACTIVE' | 'ENDED' | 'MISSED' | 'REJECTED'
+export type CallStatus = 'RINGING' | 'ACTIVE' | 'ENDED' | 'MISSED' | 'REJECTED' | 'CANCELLED'
 
 /**
  * Create Call Input

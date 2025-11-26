@@ -1,31 +1,19 @@
 import { NextResponse } from "next/server";
 import { conversationService } from "@/services/conversationService";
+import { getAuthenticatedUser } from "@/lib/auth/api-auth";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // Get token from Authorization header
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    // Authenticate the request
+    const auth = await getAuthenticatedUser();
+    if (!auth) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const token = authHeader.split(" ")[1];
-    const payload = JSON.parse(
-      Buffer.from(token.split(".")[1], "base64").toString()
-    );
-    const userId = payload.sub;
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Invalid token" },
-        { status: 401 }
-      );
-    }
-
-    const conversations = await conversationService.listConversations(userId);
+    const conversations = await conversationService.listConversations(auth.userId);
 
     return NextResponse.json({
       success: true,
@@ -42,19 +30,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    // Authenticate the request
+    const auth = await getAuthenticatedUser();
+    if (!auth) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
-
-    const token = authHeader.split(" ")[1];
-    const payload = JSON.parse(
-      Buffer.from(token.split(".")[1], "base64").toString()
-    );
-    const userId = payload.sub;
 
     const body = await request.json();
 
@@ -63,7 +46,7 @@ export async function POST(request: Request) {
       name: body.name,
       description: body.description,
       participants: body.participants,
-      createdBy: userId, // From token, not body
+      createdBy: auth.userId, // From authenticated session
       avatar: body.avatar,
     });
 

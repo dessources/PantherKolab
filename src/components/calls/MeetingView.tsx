@@ -20,7 +20,7 @@ interface MeetingViewProps {
   meetingSubtitle?: string;
   participants?: Participant[];
   activeSpeakerId?: string;
-  isCallInitiator?: boolean;
+  isCallOwner?: boolean;
   meeting?: Meeting;
   attendee?: Attendee;
   localUserId?: string;
@@ -34,7 +34,7 @@ export function MeetingView({
   meetingSubtitle,
   participants: mockParticipants,
   activeSpeakerId: mockActiveSpeakerId,
-  isCallInitiator,
+  isCallOwner,
   meeting,
   attendee,
   onEndCall,
@@ -163,7 +163,7 @@ export function MeetingView({
         isVideoEnabled={isVideoEnabled}
         onToggleMute={toggleMute}
         onToggleVideo={toggleVideo}
-        isCallInitiator={isCallInitiator}
+        isCallOwner={isCallOwner}
         onEndCall={onEndCall}
         onLeaveCall={onLeaveCall}
       />

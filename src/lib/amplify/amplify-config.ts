@@ -1,37 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 "use client";
 
-import { Amplify, type ResourcesConfig } from "aws-amplify";
+import { Amplify } from "aws-amplify";
 import { useEffect } from "react";
-
-export const authConfig: ResourcesConfig["Auth"] = {
-  Cognito: {
-    userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
-    userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!,
-    loginWith: {
-      email: true,
-    },
-    signUpVerificationMethod: "code",
-    userAttributes: {
-      email: {
-        required: true,
-      },
-      given_name: {
-        required: true,
-      },
-      family_name: {
-        required: false,
-      },
-    },
-    passwordFormat: {
-      minLength: 8,
-      requireLowercase: true,
-      requireUppercase: true,
-      requireNumbers: true,
-      requireSpecialCharacters: true,
-    },
-  },
-};
+import { authConfig, apiConfig } from "./amplify-server-config";
 
 // Configure immediately on module load
 if (typeof window !== "undefined") {
@@ -44,6 +16,7 @@ if (typeof window !== "undefined") {
   Amplify.configure(
     {
       Auth: authConfig,
+      API: apiConfig,
     },
     {
       ssr: true,
@@ -67,6 +40,7 @@ export function ConfigureAmplifyClientSide() {
     Amplify.configure(
       {
         Auth: authConfig,
+        API: apiConfig,
       },
       {
         ssr: true,

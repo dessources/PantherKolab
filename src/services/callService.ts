@@ -9,7 +9,7 @@ import type {
   Call,
   CallParticipant,
   CreateCallInput,
-  CallType,
+  //CallType,
   CallStatus,
 } from "@/types/database";
 
@@ -37,6 +37,7 @@ export const callService = {
         joinedAt: null,
         leftAt: null,
         status: "RINGING" as const,
+        becameCallOwner: null,
       })
     );
 
@@ -251,6 +252,60 @@ export const callService = {
           ":status": "ENDED",
           ":endedAt": endedAt,
           ":duration": duration,
+        },
+      })
+    );
+  },
+
+  /**
+   * Transfer call ownership to a new participant
+   * Updates the previous owner's becameCallOwner.status to false
+   * and sets the new owner's becameCallOwner with status true and timestamp
+   */
+  async transferCallOwnership(
+    sessionId: string,
+    previousOwnerId: string,
+    newOwnerId: string
+  ): Promise<void> {
+    const call = await this.getCall(sessionId);
+    if (!call) {
+      throw new Error("Call not found");
+    }
+
+    const now = new Date().toISOString();
+
+    // Update participants array
+    const updatedParticipants = call.participants.map((p) => {
+      if (p.userId === previousOwnerId && p.becameCallOwner?.status) {
+        // Remove ownership from previous owner
+        return {
+          ...p,
+          becameCallOwner: {
+            status: false,
+            timestamp: p.becameCallOwner.timestamp,
+          },
+        };
+      }
+      if (p.userId === newOwnerId) {
+        // Assign ownership to new owner
+        return {
+          ...p,
+          becameCallOwner: {
+            status: true,
+            timestamp: now,
+          },
+        };
+      }
+      return p;
+    });
+
+    await dynamoDb.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { sessionId, timestamp: call.timestamp },
+        UpdateExpression: "SET participants = :participants",
+        ExpressionAttributeValues: {
+          ":participants": updatedParticipants,
         },
       })
     );

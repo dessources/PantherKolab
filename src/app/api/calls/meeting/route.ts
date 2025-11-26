@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ChimeSDKMeetings } from "@aws-sdk/client-chime-sdk-meetings";
 import { callService } from "@/services/callService";
+import { getAuthenticatedUser, verifyUserMatch } from "@/lib/auth/api-auth";
 
 // Initialize AWS Chime SDK Meetings client
 const chime = new ChimeSDKMeetings({
@@ -31,16 +32,33 @@ function generateClientId(): string {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Authenticate the request
+    const auth = await getAuthenticatedUser();
+    if (!auth) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
-    const { action, sessionId, userId, userName, meetingId, attendeeId } = body;
+    const { action, sessionId, userId: bodyUserId, userName, meetingId, attendeeId } = body;
     const clientId = req.headers.get("x-client-id") || generateClientId();
+
+    // Verify the userId matches the authenticated user (if provided in body)
+    if (!verifyUserMatch(bodyUserId, auth.userId)) {
+      return NextResponse.json(
+        { error: "Forbidden: Cannot perform meeting actions as another user" },
+        { status: 403 }
+      );
+    }
 
     switch (action) {
       case "CREATE_MEETING": {
         // Validate required fields
-        if (!sessionId || !userId) {
+        if (!sessionId) {
           return NextResponse.json(
-            { error: "Missing required fields: sessionId, userId" },
+            { error: "Missing required field: sessionId" },
             { status: 400 }
           );
         }
@@ -71,16 +89,16 @@ export async function POST(req: NextRequest) {
           meeting.Meeting.MeetingId
         );
 
-        // Create attendee for the creator
+        // Create attendee for the creator (use authenticated userId)
         const attendee = await chime.createAttendee({
           MeetingId: meeting.Meeting.MeetingId,
-          ExternalUserId: `${userName || userId}#${clientId}`,
+          ExternalUserId: `${userName || auth.userId}#${clientId}`,
         });
 
         // Update participant status
         await callService.updateParticipantStatus(
           sessionId,
-          userId,
+          auth.userId,
           "JOINED",
           attendee.Attendee?.AttendeeId
         );
@@ -97,9 +115,9 @@ export async function POST(req: NextRequest) {
 
       case "JOIN_MEETING": {
         // Validate required fields
-        if (!sessionId || !userId) {
+        if (!sessionId) {
           return NextResponse.json(
-            { error: "Missing required fields: sessionId, userId" },
+            { error: "Missing required field: sessionId" },
             { status: 400 }
           );
         }
@@ -134,16 +152,16 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Create attendee
+        // Create attendee (use authenticated userId)
         const attendee = await chime.createAttendee({
           MeetingId: call.chimeMeetingId,
-          ExternalUserId: `${userName || userId}#${clientId}`,
+          ExternalUserId: `${userName || auth.userId}#${clientId}`,
         });
 
         // Update participant status
         await callService.updateParticipantStatus(
           sessionId,
-          userId,
+          auth.userId,
           "JOINED",
           attendee.Attendee?.AttendeeId
         );
@@ -170,9 +188,9 @@ export async function POST(req: NextRequest) {
           AttendeeId: attendeeId,
         });
 
-        // Update participant status
-        if (sessionId && userId) {
-          await callService.updateParticipantStatus(sessionId, userId, "LEFT");
+        // Update participant status (use authenticated userId)
+        if (sessionId) {
+          await callService.updateParticipantStatus(sessionId, auth.userId, "LEFT");
         }
 
         return NextResponse.json({ success: true });

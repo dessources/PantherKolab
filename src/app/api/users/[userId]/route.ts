@@ -1,42 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userService } from "@/services/userService";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
-
-// Get a specific user profile
-const verifier = CognitoJwtVerifier.create({
-  userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
-  tokenUse: "id",
-  clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!,
-});
+import { getAuthenticatedUser } from "@/lib/auth/api-auth";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    // Await params in Next.js 15
-    const { userId } = await params;
-
-    // Get token from Authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // Authenticate the request
+    const auth = await getAuthenticatedUser();
+    if (!auth) {
       return NextResponse.json(
-        { error: "Unauthorized - No token" },
+        { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const token = authHeader.substring(7); // Remove "Bearer " prefix
-
-    // Verify the JWT token
-    const payload = await verifier.verify(token);
-    const loggedInUserId = payload.sub;
-
-    console.log('Requested userId:', userId);
-    console.log('Logged in userId:', loggedInUserId);
+    // Await params in Next.js 15
+    const { userId } = await params;
 
     // Check if user is viewing their own profile
-    const isOwnProfile = loggedInUserId === userId;
+    const isOwnProfile = auth.userId === userId;
 
     // Get user from DynamoDB
     const user = await userService.getUser(userId);
@@ -49,8 +33,8 @@ export async function GET(
   } catch (error: unknown) {
     console.error("Error fetching user profile:", error);
     return NextResponse.json(
-      { error: "Unauthorized - Invalid token" },
-      { status: 401 }
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
 }
@@ -60,27 +44,22 @@ export async function PUT(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    // Await params in Next.js 15
-    const { userId } = await params;
-
-    // Get token from Authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // Authenticate the request
+    const auth = await getAuthenticatedUser();
+    if (!auth) {
       return NextResponse.json(
-        { error: "Unauthorized - No token" },
+        { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const token = authHeader.substring(7);
+    // Await params in Next.js 15
+    const { userId } = await params;
 
-    // Verify the JWT token
-    const payload = await verifier.verify(token);
-    const tokenUserId = payload.sub;
-
-    if (tokenUserId !== userId) {
+    // Only allow updating your own profile
+    if (auth.userId !== userId) {
       return NextResponse.json(
-        { error: "Forbidden - You can only update your own profile" },
+        { error: "Forbidden: You can only update your own profile" },
         { status: 403 }
       );
     }

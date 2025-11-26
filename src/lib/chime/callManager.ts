@@ -68,14 +68,12 @@ export const callManager = {
   /**
    * Accept call and create Chime meeting
    * Called when recipient accepts the call
-   * Atomically: creates meeting, updates call record, creates attendees for both parties
+   * Atomically: creates meeting, updates call record, creates attendees for all parties
+   * Works for both DIRECT (2 participants) and GROUP (N participants) calls
    */
   async acceptAndConnectCall(data: {
     sessionId: string;
     recipientId: string;
-    recipientName: string;
-    callerId: string;
-    callerName: string;
   }): Promise<{
     call: Call;
     meeting: Meeting;
@@ -120,48 +118,39 @@ export const callManager = {
         meeting.Meeting.MeetingId
       );
 
-      // 4. Create attendees for both caller and recipient
-      const callerClientId = generateClientId();
-      const recipientClientId = generateClientId();
+      // 4. Create attendees for all participants (works for both direct and group calls)
+      const attendees: Record<string, Attendee> = {};
 
-      const callerAttendee = await chime.createAttendee({
-        MeetingId: meeting.Meeting.MeetingId,
-        ExternalUserId: `${data.callerName}#${callerClientId}`,
-      });
+      for (const participant of call.participants) {
+        const clientId = generateClientId();
+        const attendeeResponse = await chime.createAttendee({
+          MeetingId: meeting.Meeting.MeetingId,
+          ExternalUserId: `${participant.userId}#${clientId}`,
+        });
 
-      const recipientAttendee = await chime.createAttendee({
-        MeetingId: meeting.Meeting.MeetingId,
-        ExternalUserId: `${data.recipientName}#${recipientClientId}`,
-      });
+        if (attendeeResponse.Attendee) {
+          attendees[participant.userId] = attendeeResponse.Attendee;
 
-      // 5. Update participant statuses to JOINED
-      await callService.updateParticipantStatus(
-        data.sessionId,
-        data.callerId,
-        "JOINED",
-        callerAttendee.Attendee?.AttendeeId
-      );
+          // Update participant status to JOINED
+          await callService.updateParticipantStatus(
+            data.sessionId,
+            participant.userId,
+            "JOINED",
+            attendeeResponse.Attendee.AttendeeId
+          );
+        }
+      }
 
-      await callService.updateParticipantStatus(
-        data.sessionId,
-        data.recipientId,
-        "JOINED",
-        recipientAttendee.Attendee?.AttendeeId
-      );
-
-      // 6. Update call status to ACTIVE
+      // 5. Update call status to ACTIVE
       await callService.updateCallStatus(data.sessionId, "ACTIVE");
 
-      // 7. Get updated call record
+      // 6. Get updated call record
       const updatedCall = await callService.getCall(data.sessionId);
 
       return {
         call: updatedCall!,
         meeting: meeting.Meeting,
-        attendees: {
-          [data?.callerId]: callerAttendee?.Attendee as Attendee,
-          [data?.recipientId]: recipientAttendee?.Attendee as Attendee,
-        },
+        attendees,
       };
     } catch (error) {
       console.error("Error in acceptAndConnectCall:", error);
@@ -196,26 +185,97 @@ export const callManager = {
 
   /**
    * Leave a call
+   * If the caller (initiatedBy) leaves a GROUP call, they must specify the new owner
+   * For DIRECT calls, the call simply ends when any participant leaves
+   * Returns the updated call and the new owner ID (if ownership was transferred)
    */
-  async leaveCall(sessionId: string, userId: string): Promise<Call> {
+  async leaveCall(
+    sessionId: string,
+    userId: string,
+    newOwnerId?: string
+  ): Promise<{ call: Call; newOwnerId: string | null }> {
     const call = await callService.getCall(sessionId);
     if (!call) {
       throw new Error("Call not found");
     }
 
-    // Update participant status
+    // Get remaining active participants (not LEFT or REJECTED) excluding the leaving user
+    const remainingActiveParticipants = call.participants.filter(
+      (p) =>
+        p.userId !== userId &&
+        p.status !== "LEFT" &&
+        p.status !== "REJECTED"
+    );
+
+    // For GROUP calls, if the initiator is leaving, they must specify a new owner
+    const isInitiator = call.initiatedBy === userId;
+    const isCurrentOwner =
+      isInitiator ||
+      call.participants.some(
+        (p) => p.userId === userId && p.becameCallOwner?.status === true
+      );
+
+    if (
+      call.callType === "GROUP" &&
+      isCurrentOwner &&
+      remainingActiveParticipants.length > 0
+    ) {
+      if (!newOwnerId) {
+        throw new Error(
+          "Call owner must specify a new owner before leaving a group call"
+        );
+      }
+
+      // Verify the new owner is a valid remaining participant
+      const isValidNewOwner = remainingActiveParticipants.some(
+        (p) => p.userId === newOwnerId
+      );
+      if (!isValidNewOwner) {
+        throw new Error("New owner must be an active participant in the call");
+      }
+
+      // Transfer ownership
+      await callService.transferCallOwnership(sessionId, userId, newOwnerId);
+    }
+
+    // Update participant status to LEFT
     await callService.updateParticipantStatus(sessionId, userId, "LEFT");
 
     // If all participants left, mark call as ENDED
-    const allLeft = call.participants.every(
-      (p) => p.status === "REJECTED" || p.status === "LEFT"
-    );
-
-    if (allLeft) {
+    if (remainingActiveParticipants.length === 0) {
       await callService.updateCallStatus(sessionId, "ENDED");
     }
+
+    return { call, newOwnerId: newOwnerId || null };
+  },
+  /**
+   * Cancel a ringing call (caller only)
+   * Used when caller hangs up before recipient answers
+   */
+  async cancelCall(sessionId: string, callerId: string): Promise<Call> {
+    const call = await callService.getCall(sessionId);
+    if (!call) {
+      throw new Error("Call not found");
+    }
+
+    // Only the caller (initiator) can cancel
+    if (call.initiatedBy !== callerId) {
+      throw new Error("Only the caller can cancel a ringing call");
+    }
+
+    // Can only cancel calls that are still ringing
+    if (call.status !== "RINGING") {
+      throw new Error(
+        `Cannot cancel call. Current status: ${call.status}`
+      );
+    }
+
+    // Update call status to CANCELLED
+    await callService.updateCallStatus(sessionId, "CANCELLED");
+
     return call;
   },
+
   /**
    * End an active call
    */

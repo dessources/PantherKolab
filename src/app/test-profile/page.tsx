@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import {  useState } from "react";
+import { useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useAuth } from "@/components/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";

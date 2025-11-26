@@ -103,62 +103,271 @@ allowEIO3: true  // Compatibility with older clients
 
 ## Deployment Platforms
 
-### AWS EC2 / VPS Deployment
+### AWS EC2
 
-1. **Install dependencies:**
-   ```bash
-   npm ci --production=false
-   ```
+Deploy to an ARM-based EC2 instance for cost-effective production hosting.
 
-2. **Build application:**
-   ```bash
-   npm run build
-   ```
+#### Phase 1: AWS Infrastructure Setup
 
-3. **Set environment variables** (use `.env.production` or export to shell)
+**1. Launch EC2 Instance**
 
-4. **Start with process manager (PM2):**
-   ```bash
-   npm install -g pm2
-   pm2 start npm --name "pantherkolab" -- start
-   pm2 save
-   pm2 startup
-   ```
+- **AMI:** Amazon Linux 2023 (ARM64)
+- **Instance type:** `t4g.micro` (free tier eligible for 12 months)
+- **Storage:** 20GB gp3 EBS
+- **Security Group Rules:**
+  - Port 22 (SSH) - Your IP only
+  - Port 80 (HTTP) - 0.0.0.0/0
+  - Port 443 (HTTPS) - 0.0.0.0/0
 
-5. **Configure reverse proxy (nginx):**
-   ```nginx
-   server {
-       listen 80;
-       server_name pantherkolab.com www.pantherkolab.com;
+**2. Elastic IP**
 
-       location / {
-           proxy_pass http://localhost:3000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
+```bash
+# Allocate and associate static IP (free while attached to running instance)
+aws ec2 allocate-address --domain vpc
+aws ec2 associate-address --instance-id <instance-id> --allocation-id <allocation-id>
+```
 
-       # Socket.IO specific
-       location /socket.io/ {
-           proxy_pass http://localhost:3000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection "upgrade";
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-       }
-   }
-   ```
+**3. IAM Role for EC2**
 
-6. **Enable HTTPS with Let's Encrypt:**
-   ```bash
-   sudo apt install certbot python3-certbot-nginx
-   sudo certbot --nginx -d pantherkolab.com -d www.pantherkolab.com
-   ```
+Create an IAM role with these policies and attach to the EC2 instance:
+- `AmazonDynamoDBFullAccess`
+- `AmazonChimeSDK`
+- `CloudWatchAgentServerPolicy`
+
+This eliminates the need for AWS credentials in `.env.local`.
+
+---
+
+#### Phase 2: Server Configuration
+
+**4. Install Dependencies (SSH into EC2)**
+
+```bash
+# Update system
+sudo yum update -y
+
+# Install Node.js 20 LTS (ARM)
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo yum install -y nodejs git
+
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Install Nginx
+sudo yum install -y nginx
+```
+
+**5. Clone & Build Application**
+
+```bash
+# Clone repository
+git clone https://github.com/dessources/PantherKolab.git /home/ec2-user/pantherkolab
+cd /home/ec2-user/pantherkolab
+
+# Install dependencies (including devDependencies for build)
+npm ci --production=false
+
+# Build Next.js application
+npm run build
+```
+
+**6. Environment Variables**
+
+Create `/home/ec2-user/pantherkolab/.env.local`:
+
+```bash
+# Production Domain
+NEXT_PUBLIC_APP_URL=https://pantherkolab.com
+
+# Cognito Configuration
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_xxxxx
+NEXT_PUBLIC_COGNITO_CLIENT_ID=xxxxx
+
+# AWS Region (credentials come from IAM role, not env vars)
+AWS_REGION=us-east-1
+
+# DynamoDB Tables
+DYNAMODB_USERS_TABLE=PantherKolab-Users-prod
+DYNAMODB_CONVERSATIONS_TABLE=PantherKolab-Conversations-prod
+DYNAMODB_MESSAGES_TABLE=PantherKolab-Messages-prod
+DYNAMODB_GROUPS_TABLE=PantherKolab-Groups-prod
+DYNAMODB_CALLS_TABLE=PantherKolab-Calls-prod
+
+# AWS Chime
+AWS_CHIME_REGION=us-east-1
+
+# AppSync (optional)
+NEXT_PUBLIC_APPSYNC_EVENT_HTTP_ENDPOINT=https://xxx.appsync-api.us-east-1.amazonaws.com/event
+APPSYNC_EVENT_API_KEY=da2-xxxxx
+
+# Port
+PORT=3000
+```
+
+**Note:** Do NOT include `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` - the IAM role provides credentials automatically.
+
+---
+
+#### Phase 3: Process Management & Reverse Proxy
+
+**7. PM2 Ecosystem File**
+
+Create `/home/ec2-user/pantherkolab/ecosystem.config.js`:
+
+```javascript
+module.exports = {
+  apps: [{
+    name: 'pantherkolab',
+    script: 'server.ts',
+    interpreter: 'npx',
+    interpreter_args: 'tsx',
+    cwd: '/home/ec2-user/pantherkolab',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '500M',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+  }]
+};
+```
+
+**8. Nginx Configuration**
+
+Create `/etc/nginx/conf.d/pantherkolab.conf`:
+
+```nginx
+upstream pantherkolab {
+    server 127.0.0.1:3000;
+    keepalive 64;
+}
+
+server {
+    listen 80;
+    server_name pantherkolab.com www.pantherkolab.com;
+
+    # Redirect HTTP to HTTPS (after SSL is configured)
+    # return 301 https://$server_name$request_uri;
+
+    location / {
+        proxy_pass http://pantherkolab;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    # Socket.IO specific path
+    location /socket.io/ {
+        proxy_pass http://pantherkolab;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+}
+```
+
+**9. Start Services**
+
+```bash
+# Start application with PM2
+cd /home/ec2-user/pantherkolab
+pm2 start ecosystem.config.js
+
+# Save PM2 process list and configure startup
+pm2 save
+pm2 startup
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Enable and start Nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
+---
+
+#### Phase 4: SSL & Domain
+
+**10. DNS Configuration**
+
+Point your domain's A record to the Elastic IP:
+
+| Record Type | Host | Value |
+|-------------|------|-------|
+| A | @ | <Elastic-IP> |
+| A | www | <Elastic-IP> |
+
+**11. SSL Certificate with Let's Encrypt**
+
+```bash
+# Install Certbot
+sudo yum install -y certbot python3-certbot-nginx
+
+# Obtain and configure SSL certificate
+sudo certbot --nginx -d pantherkolab.com -d www.pantherkolab.com
+
+# Verify auto-renewal is configured
+sudo systemctl status certbot-renew.timer
+```
+
+After SSL is configured, uncomment the HTTPS redirect in the Nginx config.
+
+---
+
+#### Deployment Script
+
+Create `/home/ec2-user/deploy.sh` for future updates:
+
+```bash
+#!/bin/bash
+set -e
+
+cd /home/ec2-user/pantherkolab
+
+echo "Pulling latest changes..."
+git pull origin main
+
+echo "Installing dependencies..."
+npm ci --production=false
+
+echo "Building application..."
+npm run build
+
+echo "Restarting PM2..."
+pm2 restart pantherkolab
+
+echo "Deployment complete!"
+```
+
+Make executable: `chmod +x /home/ec2-user/deploy.sh`
+
+---
+
+#### Estimated Monthly Cost
+
+| Resource | Cost |
+|----------|------|
+| EC2 t4g.micro | $0 (free tier) or ~$6/month |
+| Elastic IP | $0 (while attached) |
+| EBS 20GB gp3 | ~$1.60/month |
+| Data transfer | ~$1-3/month |
+| **Total** | **~$3-10/month** |
 
 ### Docker Deployment
 
@@ -197,13 +406,270 @@ docker build -t pantherkolab .
 docker run -p 3000:3000 --env-file .env.production pantherkolab
 ```
 
-### Vercel / Netlify (NOT RECOMMENDED)
+### Vercel + AWS AppSync Events (Recommended for Low-Cost)
 
-⚠️ **Vercel and Netlify do NOT support custom Node.js servers with Socket.IO.**
+Deploy to Vercel's free tier by replacing Socket.IO with AWS AppSync Events API for real-time functionality.
 
-These platforms use serverless functions which cannot maintain WebSocket connections.
+#### Overview
 
-**Alternative:** Deploy frontend to Vercel/Netlify and Socket.IO server separately to EC2/VPS.
+This approach eliminates the need for `server.ts` by using:
+- **Vercel** — Hosts Next.js app (serverless)
+- **AWS AppSync Events** — Handles real-time WebSocket connections
+- **Cognito** — Authentication at the API level
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Client                                     │
+│                    (Cognito JWT Auth)                                │
+└──────────────┬────────────────────────────────┬─────────────────────┘
+               │                                │
+               ▼                                ▼
+┌──────────────────────────┐      ┌────────────────────────────────────┐
+│   AppSync Events API     │      │     Vercel API Routes              │
+│   (Real-time broadcast)  │      │     (DB persistence)               │
+│                          │      │                                    │
+│  • HTTP POST to publish  │      │  /api/messages POST → DynamoDB     │
+│  • WebSocket subscribe   │      │  /api/calls POST → DynamoDB+Chime  │
+│  • onPublish: timestamp  │      │                                    │
+└──────────────────────────┘      └────────────────────────────────────┘
+```
+
+#### Phase 1: AppSync Events Setup (AWS Console)
+
+**1. Create Event API**
+
+- AWS Console → AppSync → Create API → **Event API**
+- Name: `PantherKolab-Events`
+- Authorization: **Amazon Cognito User Pool**
+  - User Pool: Select your existing Cognito pool
+  - Default action: ALLOW
+
+**2. Create Namespaces with onPublish Handlers**
+
+Create these namespaces in the AppSync console:
+
+| Namespace | Purpose | onPublish Handler |
+|-----------|---------|-------------------|
+| `/chats` | Message events | Add `timestamp` field |
+| `/calls` | Call signaling | Add `timestamp` field |
+| `/typing` | Typing indicators | None (ephemeral) |
+
+**Example onPublish handler** (add in console):
+```javascript
+export function onPublish(ctx) {
+  ctx.events.forEach(event => {
+    event.timestamp = util.time.nowISO8601();
+  });
+  return ctx.events;
+}
+```
+
+**3. Note Your Endpoints**
+
+After creation, note these values:
+- HTTP Endpoint: `https://xxx.appsync-api.us-east-1.amazonaws.com/event`
+- Realtime Endpoint: `wss://xxx.appsync-realtime-api.us-east-1.amazonaws.com/event/realtime`
+
+---
+
+#### Phase 2: Code Migration
+
+**1. Remove Socket.IO Dependencies**
+
+```bash
+npm uninstall socket.io socket.io-client
+```
+
+**2. Delete server.ts** (no longer needed)
+
+**3. Update package.json scripts**
+
+```json
+{
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start"
+  }
+}
+```
+
+**4. Create AppSync Client** (`src/lib/appsync-client.ts`)
+
+```typescript
+// Client-side AppSync Events subscription
+import { fetchAuthSession } from 'aws-amplify/auth';
+
+const REALTIME_ENDPOINT = process.env.NEXT_PUBLIC_APPSYNC_REALTIME_ENDPOINT!;
+const HTTP_ENDPOINT = process.env.NEXT_PUBLIC_APPSYNC_EVENT_HTTP_ENDPOINT!;
+
+export async function publishEvent(channel: string, event: object) {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.accessToken?.toString();
+
+  const response = await fetch(HTTP_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token!,
+    },
+    body: JSON.stringify({
+      channel,
+      events: [JSON.stringify(event)],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`AppSync publish failed: ${response.status}`);
+  }
+}
+
+export function subscribeToChannel(
+  channel: string,
+  onEvent: (event: any) => void,
+  onError?: (error: Error) => void
+): () => void {
+  // WebSocket subscription implementation
+  // See AWS AppSync Events documentation for full implementation
+  // Returns unsubscribe function
+}
+```
+
+**5. Replace Socket.IO Usage**
+
+Before (Socket.IO):
+```typescript
+socket.emit('send-message', { conversationId, content });
+socket.on('new-message', (message) => { ... });
+```
+
+After (AppSync Events + API Route):
+```typescript
+// Send message: publish to AppSync AND persist to DB
+await Promise.all([
+  publishEvent(`/chats/${conversationId}`, {
+    type: 'MESSAGE_SENT',
+    data: { content, senderId: userId }
+  }),
+  fetch('/api/messages', {
+    method: 'POST',
+    body: JSON.stringify({ conversationId, content })
+  })
+]);
+
+// Receive messages: subscribe to channel
+const unsubscribe = subscribeToChannel(
+  `/chats/${conversationId}`,
+  (event) => {
+    if (event.type === 'MESSAGE_SENT') {
+      addMessage(event.data);
+    }
+  }
+);
+```
+
+---
+
+#### Phase 3: Channel Design
+
+| Channel Pattern | Use Case | Subscribers |
+|-----------------|----------|-------------|
+| `/chats/{conversationId}` | Messages in a conversation | All participants |
+| `/calls/{sessionId}` | Call signaling | Caller + recipient |
+| `/users/{userId}` | Direct notifications | Single user |
+| `/typing/{conversationId}` | Typing indicators | All participants |
+
+**Call Signaling Flow:**
+
+```
+1. Caller publishes to /users/{recipientId}:
+   { type: 'INCOMING_CALL', callerId, sessionId }
+
+2. Recipient accepts → publishes to /calls/{sessionId}:
+   { type: 'CALL_ACCEPTED' }
+
+3. API route creates Chime meeting, returns credentials
+
+4. Both subscribe to /calls/{sessionId} for ongoing events
+```
+
+---
+
+#### Phase 4: Vercel Deployment
+
+**1. Connect Repository**
+
+- Vercel Dashboard → New Project → Import Git Repository
+- Framework: Next.js (auto-detected)
+
+**2. Environment Variables**
+
+Add in Vercel Dashboard → Settings → Environment Variables:
+
+```bash
+# Cognito
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_xxxxx
+NEXT_PUBLIC_COGNITO_CLIENT_ID=xxxxx
+
+# AppSync Events
+NEXT_PUBLIC_APPSYNC_EVENT_HTTP_ENDPOINT=https://xxx.appsync-api.us-east-1.amazonaws.com/event
+NEXT_PUBLIC_APPSYNC_REALTIME_ENDPOINT=wss://xxx.appsync-realtime-api.us-east-1.amazonaws.com/event/realtime
+
+# AWS (for API routes - use Vercel's AWS integration or env vars)
+AWS_ACCESS_KEY_ID=xxxxx
+AWS_SECRET_ACCESS_KEY=xxxxx
+AWS_REGION=us-east-1
+
+# DynamoDB Tables
+DYNAMODB_USERS_TABLE=PantherKolab-Users-prod
+DYNAMODB_CONVERSATIONS_TABLE=PantherKolab-Conversations-prod
+DYNAMODB_MESSAGES_TABLE=PantherKolab-Messages-prod
+DYNAMODB_GROUPS_TABLE=PantherKolab-Groups-prod
+DYNAMODB_CALLS_TABLE=PantherKolab-Calls-prod
+```
+
+**3. Deploy**
+
+```bash
+vercel --prod
+```
+
+Or enable automatic deployments on push to `main`.
+
+---
+
+#### Estimated Monthly Cost
+
+| Resource | Cost |
+|----------|------|
+| Vercel (Hobby) | $0 |
+| AppSync Events (free tier) | $0 (250K connections, 1M messages/month) |
+| DynamoDB | ~$0-2 (on-demand, low usage) |
+| Cognito | $0 (first 50K MAU free) |
+| **Total** | **$0-2/month** |
+
+---
+
+#### Trade-offs vs Socket.IO
+
+| Aspect | Socket.IO (EC2) | AppSync Events (Vercel) |
+|--------|-----------------|-------------------------|
+| Cost | ~$3-10/month | ~$0/month |
+| Latency | ~10-50ms | ~50-150ms |
+| Setup complexity | Higher (server management) | Lower (serverless) |
+| Scaling | Manual | Automatic |
+| User presence | Built-in (rooms) | Requires custom impl |
+| Maintenance | PM2, Nginx, SSL renewal | Zero |
+
+**Best for:** Passion projects, MVPs, low-traffic apps where cost matters more than minimal latency.
+
+---
+
+### Vercel / Netlify with Socket.IO (NOT SUPPORTED)
+
+⚠️ **Vercel and Netlify do NOT support custom Node.js servers with persistent Socket.IO connections.**
+
+If you need Socket.IO specifically, use the [AWS EC2](#aws-ec2) or [Docker](#docker-deployment) deployment options.
 
 ---
 
