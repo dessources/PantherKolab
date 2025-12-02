@@ -1,0 +1,158 @@
+{
+  "user": {
+    "name": "Jonas",
+    "greeting": "Good morning",
+    "stats": {
+      "meetings": 3,
+      "unreadMessages": 17
+    }
+  },
+  "groups": [
+    {
+      "id": "group1",
+      "name": "Data Structures",
+      "code": "COP 3530",
+      "emoji": "📚",
+      "unreadCount": 5,
+      "active": true,
+      "meta": "📅 Study Session in 2h",
+      "borderColor": "#0066cc",
+      "actions": [
+        { "label": "View Messages", "primary": true, "style": {} },
+        { "label": "Join Whiteboard", "primary": false, "style": { "background": "#0066cc", "color": "white" } }
+      ]
+    },
+    {
+      "id": "group2",
+      "name": "Web Development",
+      "code": "COP 4813",
+      "emoji": "🎨",
+      "unreadCount": 12,
+      "active": false,
+      "meta": "👥 8 students active now",
+      "borderColor": "#ffb500",
+      "codeStyle": { "background": "rgba(255, 181, 0, 0.1)", "color": "#003366" },
+      "actions": [
+        { "label": "View Messages", "primary": true, "style": {} }
+      ]
+    },
+    {
+      "id": "group3",
+      "name": "Operating Systems",
+      "code": "COP 4610",
+      "emoji": "💻",
+      "unreadCount": 0,
+      "active": false,
+      "meta": "📝 Assignment due in 3 days",
+      "borderColor": "#28a745",
+      "codeStyle": { "background": "rgba(40, 167, 69, 0.1)", "color": "#28a745" },
+      "actions": [
+        { "label": "View Messages", "primary": true, "style": {} }
+      ]
+    }
+  ],
+  "directMessages": [
+    {
+      "id": "dm1",
+      "name": "Ousman Bah",
+      "emoji": "👤",
+      "unreadCount": 2
+    },
+    {
+      "id": "dm2",
+      "name": "Antoine",
+      "emoji": "👤",
+      "unreadCount": 0
+    }
+  ],
+  "missedConversations": [
+    {
+      "id": "summary1",
+      "emoji": "💬",
+      "title": "Mobile Dev Group",
+      "content": "Team discussed React Native setup and decided to use Expo for the project. Maria shared tutorial links and setup instructions. Antoine encountered an iOS simulator issue which Michael helped resolve. Next meeting scheduled for Thursday 3pm."
+    },
+    {
+      "id": "summary2",
+      "emoji": "📚",
+      "title": "COP 3530 Study Group",
+      "content": "Group worked through Binary Search Tree problems. Key topics: insertion, deletion, and traversal algorithms. Michael shared helpful visualizations. Practice problems assigned for next session."
+    }
+  ],
+  "suggestions": [
+    {
+      "id": "suggest1",
+      "emoji": "🎯",
+      "title": "Database Systems Study Group",
+      "meta": "12 FIU students • Based on your schedule",
+      "iconStyle": "linear-gradient(135deg, #0066cc, #4a90e2)"
+    },
+    {
+      "id": "suggest2",
+      "emoji": "📊",
+      "title": "INIT Build Program Team",
+      "meta": "5 members • Project collaboration",
+      "iconStyle": "linear-gradient(135deg, #ffb500, #ffc733)"
+    }
+  ],
+  "schedule": [
+    {
+      "id": "schedule1",
+      "time": "9:00 AM - 10:15 AM",
+      "title": "COP 3530 Lecture",
+      "location": "PG6 Building, Room 120",
+      "borderColor": "#0066cc",
+      "timeColor": "#0066cc"
+    },
+    {
+      "id": "schedule2",
+      "time": "2:00 PM - 4:00 PM",
+      "title": "Study Session with Ousman",
+      "location": "Library, 3rd Floor",
+      "borderColor": "#ffb500",
+      "timeColor": "#ffb500"
+    },
+    {
+      "id": "schedule3",
+      "time": "6:00 PM - 7:00 PM",
+      "title": "INIT Build Standup",
+      "location": "Virtual Meeting",
+      "borderColor": "#28a745",
+      "timeColor": "#28a745"
+    }
+  ],
+  "deadlines": [
+    {
+      "id": "deadline1",
+      "month": "NOV",
+      "day": "30",
+      "title": "Project Proposal",
+      "dueTime": "Due in 3 days"
+    },
+    {
+      "id": "deadline2",
+      "month": "DEC",
+      "day": "2",
+      "title": "BST Assignment",
+      "dueTime": "Due in 5 days"
+    }
+  ],
+  "activeSessions": [
+    {
+      "id": "session1",
+      "title": "Web Dev Office Hours",
+      "participants": "8 students active"
+    },
+    {
+      "id": "session2",
+      "title": "Algorithms Study Group",
+      "participants": "5 students active"
+    }
+  ],
+  "activity": {
+    "unreadMessages": { "value": 17, "color": "#0066cc" },
+    "activeGroups": { "value": 5, "color": "#ffb500" },
+    "studySessions": { "value": 3, "color": "#28a745" },
+    "collaborations": { "value": 12, "color": "#003366" }
+  }
+}
