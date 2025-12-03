@@ -11,6 +11,7 @@ import {
   debounce,
   type SearchableUser,
 } from "./utils/userSearch";
+import Image from "next/image";
 
 interface RecentUser {
   id: string;
@@ -35,7 +36,9 @@ export default function NewConversationDropdown({
   recentUsers,
   anchorRef,
 }: NewConversationDropdownProps) {
-  const [view, setView] = useState<"initial" | "selecting_members" | "group_details">("initial");
+  const [view, setView] = useState<
+    "initial" | "selecting_members" | "group_details"
+  >("initial");
   const [selectedMembers, setSelectedMembers] = useState<SearchableUser[]>([]);
   const [groupName, setGroupName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,11 +79,10 @@ export default function NewConversationDropdown({
     () => filterRecentUsers(recentUsers, searchQuery),
     [recentUsers, searchQuery]
   );
-  const { dbUsers: uniqueDbUsers, recentUsers: uniqueRecentUsers } =
-    useMemo(
-      () => combineSearchResults(dbUsers, filteredRecentUsers),
-      [dbUsers, filteredRecentUsers]
-    );
+  const { dbUsers: uniqueDbUsers, recentUsers: uniqueRecentUsers } = useMemo(
+    () => combineSearchResults(dbUsers, filteredRecentUsers),
+    [dbUsers, filteredRecentUsers]
+  );
 
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
@@ -121,7 +123,7 @@ export default function NewConversationDropdown({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, onClose, anchorRef]);
-  
+
   const handleEmojiSelect = (emojiData: EmojiClickData) => {
     setGroupName((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
@@ -153,10 +155,12 @@ export default function NewConversationDropdown({
           />
         )}
         {user.avatar ? (
-          <img
+          <Image
             src={user.avatar}
             alt={user.name}
             className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            width={10}
+            height={10}
           />
         ) : (
           <div className="w-10 h-10 rounded-full bg-[#FFB300] flex items-center justify-center flex-shrink-0">
@@ -181,54 +185,77 @@ export default function NewConversationDropdown({
       >
         {/* Header */}
         {(view === "selecting_members" || view === "group_details") && (
-           <div className="flex items-center gap-2 p-3 border-b border-gray-200">
-             <button
-                onClick={() => setView(view === 'group_details' ? 'selecting_members' : 'initial')}
-                className="p-2 hover:bg-gray-100 rounded-full"
-             >
-               <ArrowLeft className="w-5 h-5 text-gray-600" />
-             </button>
-             <div className="flex flex-col">
-               <h3 className="text-md font-semibold text-gray-900">
-                 {view === 'group_details' ? 'New Group' : 'Add Participants'}
-               </h3>
-               {view === 'selecting_members' && <p className="text-xs text-gray-500">{selectedMembers.length} selected</p>}
-             </div>
-           </div>
+          <div className="flex items-center gap-2 p-3 border-b border-gray-200">
+            <button
+              onClick={() =>
+                setView(
+                  view === "group_details" ? "selecting_members" : "initial"
+                )
+              }
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div className="flex flex-col">
+              <h3 className="text-md font-semibold text-gray-900">
+                {view === "group_details" ? "New Group" : "Add Participants"}
+              </h3>
+              {view === "selecting_members" && (
+                <p className="text-xs text-gray-500">
+                  {selectedMembers.length} selected
+                </p>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Search Bar */}
-        {(view === 'initial' || view === 'selecting_members') && (
-            <div className="p-3 border-b border-gray-200">
-                <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder={view === 'initial' ? "Search users..." : "Search for participants..."}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-sm text-gray-900 placeholder:text-gray-500"
-                    autoFocus
-                />
-                </div>
+        {(view === "initial" || view === "selecting_members") && (
+          <div className="p-3 border-b border-gray-200">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+              <input
+                type="text"
+                placeholder={
+                  view === "initial"
+                    ? "Search users..."
+                    : "Search for participants..."
+                }
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC] text-sm text-gray-900 placeholder:text-gray-500"
+                autoFocus
+              />
             </div>
+          </div>
         )}
 
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {view === "initial" && (
             <>
-              <div onClick={() => setView("selecting_members")} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-200">
+              <div
+                onClick={() => setView("selecting_members")}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-200"
+              >
                 <div className="w-10 h-10 rounded-full bg-[#0066CC] flex items-center justify-center flex-shrink-0">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">New Group</p>
-                  <p className="text-xs text-gray-500">Create a group conversation</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    New Group
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Create a group conversation
+                  </p>
                 </div>
               </div>
-              {isSearching ? ( <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
-              ) : uniqueDbUsers.length === 0 && uniqueRecentUsers.length === 0 ? (
+              {isSearching ? (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  Searching...
+                </div>
+              ) : uniqueDbUsers.length === 0 &&
+                uniqueRecentUsers.length === 0 ? (
                 <div className="p-4 text-center text-sm text-gray-500">
                   {searchQuery ? "No users found" : "No recent conversations"}
                 </div>
@@ -236,13 +263,21 @@ export default function NewConversationDropdown({
                 <>
                   {uniqueDbUsers.length > 0 && (
                     <>
-                      {searchQuery && <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Search Results</div>}
+                      {searchQuery && (
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                          Search Results
+                        </div>
+                      )}
                       {renderUserList(uniqueDbUsers, false)}
                     </>
                   )}
                   {uniqueRecentUsers.length > 0 && (
                     <>
-                      {(uniqueDbUsers.length > 0 && searchQuery) && <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Recent</div>}
+                      {uniqueDbUsers.length > 0 && searchQuery && (
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                          Recent
+                        </div>
+                      )}
                       {renderUserList(uniqueRecentUsers, false)}
                     </>
                   )}
@@ -253,15 +288,23 @@ export default function NewConversationDropdown({
 
           {view === "selecting_members" && (
             <>
-              {isSearching ? ( <div className="p-4 text-center text-sm text-gray-500">Searching...</div>
-              ) : uniqueDbUsers.length === 0 && uniqueRecentUsers.length === 0 ? (
+              {isSearching ? (
                 <div className="p-4 text-center text-sm text-gray-500">
-                  {searchQuery ? "No users found" : "Start typing to find people"}
+                  Searching...
+                </div>
+              ) : uniqueDbUsers.length === 0 &&
+                uniqueRecentUsers.length === 0 ? (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  {searchQuery
+                    ? "No users found"
+                    : "Start typing to find people"}
                 </div>
               ) : (
                 <>
-                  {uniqueDbUsers.length > 0 && renderUserList(uniqueDbUsers, true)}
-                  {uniqueRecentUsers.length > 0 && renderUserList(uniqueRecentUsers, true)}
+                  {uniqueDbUsers.length > 0 &&
+                    renderUserList(uniqueDbUsers, true)}
+                  {uniqueRecentUsers.length > 0 &&
+                    renderUserList(uniqueRecentUsers, true)}
                 </>
               )}
             </>
@@ -294,7 +337,7 @@ export default function NewConversationDropdown({
               </div>
               {showEmojiPicker && (
                 <div ref={emojiPickerRef} className="absolute z-10 right-0">
-                  <EmojiPicker onEmojiClick={handleEmojiSelect} theme="light" />
+                  <EmojiPicker onEmojiClick={handleEmojiSelect} />
                 </div>
               )}
             </div>
@@ -304,17 +347,26 @@ export default function NewConversationDropdown({
         {/* Footer */}
         {view === "selecting_members" && selectedMembers.length > 0 && (
           <div className="p-3 border-t border-gray-200 bg-white flex justify-end gap-3">
-            <button onClick={() => setShowCancelModal(true)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            >
               Cancel
             </button>
-            <button onClick={() => setView("group_details")} className="px-4 py-2 text-sm font-semibold text-white bg-[#0066CC] hover:bg-blue-700 rounded-lg">
+            <button
+              onClick={() => setView("group_details")}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#0066CC] hover:bg-blue-700 rounded-lg"
+            >
               Continue
             </button>
           </div>
         )}
         {view === "group_details" && (
           <div className="p-3 border-t border-gray-200 bg-white flex justify-end gap-3">
-            <button onClick={() => setShowCancelModal(true)} className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            >
               Cancel
             </button>
             <button

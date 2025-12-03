@@ -5,8 +5,16 @@ import {
   UpdateCommand,
   ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { TABLE_NAMES, type Conversation } from "@/types/database";
+import {
+  TABLE_NAMES,
+  type Conversation,
+  type ConversationWithNames,
+} from "@/types/database";
 import { userService } from "./userService";
+import type { UserProfile } from "@/types/UserProfile";
+
+// Module-level cache for user profiles to avoid redundant fetches
+const userProfileCache = new Map<string, UserProfile>();
 
 interface CreateConversationInput {
   type: "DM" | "GROUP";
@@ -66,7 +74,7 @@ export const conversationService = {
     return (result.Item as Conversation) || null;
   },
 
-  async listConversations(userId: string): Promise<Conversation[]> {
+  async listConversations(userId: string): Promise<ConversationWithNames[]> {
     console.log("Listing conversations for userId:", userId);
 
     const result = await dynamoDb.send(
@@ -81,26 +89,74 @@ export const conversationService = {
 
     const conversations = (result.Items as Conversation[]) || [];
 
-    // Map over conversations to enrich DM names
-    const enrichedConversations = await Promise.all(
-      conversations.map(async (conv) => {
-        if (conv.type === "DM") {
-          const otherUserId = conv.participants.find((p) => p !== userId);
-          if (otherUserId) {
-            const otherUser = await userService.getUser(otherUserId);
-            if (otherUser) {
-              conv.name = `${otherUser.firstName} ${otherUser.lastName}`;
-            }
-          }
-        }
-        return conv;
-      })
+    const enrichedConversations = await this.enrichConversationsWithNames(
+      conversations,
+      userId
     );
 
     console.log(
       "Total conversations found:",
       enrichedConversations.length || 0
     );
+
+    return enrichedConversations;
+  },
+
+  async enrichConversationsWithNames(
+    conversations: Conversation[],
+    currentUserId: string
+  ): Promise<ConversationWithNames[]> {
+    // 1. Collect all unique user IDs from all conversations
+    const userIdsToFetch = new Set<string>();
+    conversations.forEach((conv) => {
+      conv.participants.forEach((id) => {
+        if (!userProfileCache.has(id)) {
+          userIdsToFetch.add(id);
+        }
+      });
+    });
+
+    // 2. Batch fetch non-cached users
+    if (userIdsToFetch.size > 0) {
+      const usersToFetchArray = Array.from(userIdsToFetch);
+      const userPromises = usersToFetchArray.map((id) =>
+        userService.getUser(id)
+      );
+      const fetchedUsers = await Promise.all(userPromises);
+
+      // 3. Update cache
+      fetchedUsers.forEach((user) => {
+        if (user) {
+          userProfileCache.set(user.userId, user);
+        }
+      });
+    }
+
+    // 4. Enrich conversations
+    const enrichedConversations = conversations.map((conv) => {
+      const participantNames: { [userId: string]: string } = {};
+      conv.participants.forEach((id) => {
+        const user = userProfileCache.get(id);
+        participantNames[id] = user
+          ? `${user.firstName} ${user.lastName}`
+          : "Unknown User";
+      });
+
+      let enrichedName = conv.name;
+      // For DMs, set the conversation name to the other user's name
+      if (conv.type === "DM") {
+        const otherUserId = conv.participants.find((p) => p !== currentUserId);
+        if (otherUserId) {
+          enrichedName = participantNames[otherUserId] || "Unknown User";
+        }
+      }
+
+      return {
+        ...conv,
+        name: enrichedName,
+        participantNames,
+      };
+    });
 
     return enrichedConversations;
   },
@@ -131,9 +187,6 @@ export const conversationService = {
     console.log("Last message updated successfully");
   },
 
-  /**
-   * Find an existing DM conversation between two users, or create a new one
-   */
   async findOrCreateDM(
     userId1: string,
     userId2: string,
@@ -176,7 +229,9 @@ export const conversationService = {
     console.log(`Creating group conversation "${name}" by ${createdBy}`);
 
     // Ensure the creator is included in the participants list
-    const finalParticipants = Array.from(new Set([...participantIds, createdBy]));
+    const finalParticipants = Array.from(
+      new Set([...participantIds, createdBy])
+    );
 
     const newConversation = await this.createConversation({
       type: "GROUP",

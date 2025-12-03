@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { MeetingView } from "@/components/calls/MeetingView";
 import { IncomingCallModal } from "@/components/calls/IncomingCallModal";
+import { OutgoingCallModal } from "@/components/calls/OutgoingCallModal";
 import { useCalls, type MeetingData } from "@/hooks/useCalls";
 import { useAuth } from "@/components/contexts/AuthContext";
 
@@ -13,6 +14,8 @@ export default function MeetingUITestPage() {
     "d4e884c8-5011-70f3-e29a-5f29eb210c38"
   );
   const [meetingData, setMeetingData] = useState<MeetingData | null>(null);
+  const [showOutgoingCall, setShowOutgoingCall] = useState(false);
+  const [outgoingRecipientName, setOutgoingRecipientName] = useState("");
 
   const auth = useAuth();
   const localUserId = auth.user?.userId || "";
@@ -22,6 +25,7 @@ export default function MeetingUITestPage() {
   const handleCallConnected = useCallback((data: MeetingData) => {
     console.log("Call connected! MeetingId:", data.meeting);
     setMeetingData(data);
+    setShowOutgoingCall(false); // Close outgoing modal
     setShowMeeting(true);
   }, []);
 
@@ -29,18 +33,20 @@ export default function MeetingUITestPage() {
     console.log(`Call ${sessionId} ended by ${endedBy}`);
     setShowMeeting(false);
     setMeetingData(null);
+    setShowOutgoingCall(false); // Close outgoing modal
     alert("Call has ended");
   }, []);
 
   const handleCallRejected = useCallback((sessionId: string) => {
     console.log("Call rejected:", sessionId);
+    setShowOutgoingCall(false); // Close outgoing modal
     alert("Call was declined");
   }, []);
 
   const handleCallCancelled = useCallback(
     (sessionId: string, cancelledBy: string) => {
       console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
-      // Incoming call modal is automatically dismissed by the hook
+      setShowOutgoingCall(false); // Close outgoing modal
     },
     []
   );
@@ -58,6 +64,7 @@ export default function MeetingUITestPage() {
 
   const handleError = useCallback((error: string) => {
     console.error("Call error:", error);
+    setShowOutgoingCall(false); // Close outgoing modal on error
     alert("Call error: " + error);
   }, []);
 
@@ -126,19 +133,25 @@ export default function MeetingUITestPage() {
 
   // Handle initiating a call
   const handleInitiateCall = async () => {
-    if (!participants.trim()) {
+    const recipientId = participants.trim();
+    if (!recipientId) {
       alert("Please enter a participant ID");
       return;
     }
 
+    // For now, use the ID as the name. In a real app, you'd fetch this.
+    setOutgoingRecipientName(recipientId);
+    setShowOutgoingCall(true);
+
     try {
-      const participantIds = [localUserId, participants.trim()];
+      const participantIds = [localUserId, recipientId];
       await initiateCall({
         participantIds,
         callType,
       });
     } catch (error) {
       console.error("Failed to initiate call:", error);
+      setShowOutgoingCall(false);
       alert(
         "Failed to initiate call: " +
           (error instanceof Error ? error.message : "Unknown error")
@@ -194,8 +207,6 @@ export default function MeetingUITestPage() {
     if (!activeCall) return;
 
     try {
-      // For group calls, if we're the owner, we'd need to specify a new owner
-      // For now, just leave without specifying (works for DIRECT calls)
       await leaveCall(activeCall.sessionId);
       setShowMeeting(false);
       setMeetingData(null);
@@ -208,12 +219,12 @@ export default function MeetingUITestPage() {
     }
   };
 
-  // Handle cancelling a ringing call
-  const handleCancelCall = async () => {
+  // Handle cancelling a ringing call from the modal
+  const handleCancelFromModal = async () => {
     if (!activeCall) return;
-
     try {
       await cancelCall(activeCall.sessionId);
+      setShowOutgoingCall(false);
     } catch (error) {
       console.error("Failed to cancel call:", error);
     }
@@ -283,28 +294,15 @@ export default function MeetingUITestPage() {
                       className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0066CC] focus:border-transparent"
                     />
                   </div>
-                  {isRinging ? (
-                    <button
-                      onClick={handleCancelCall}
-                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                    >
-                      Cancel Call
-                    </button>
-                  ) : (
+                  
                     <button
                       onClick={handleInitiateCall}
                       className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                      disabled={!isConnected || !localUserId}
+                      disabled={!isConnected || !localUserId || showOutgoingCall}
                     >
                       Start Call
                     </button>
-                  )}
                 </div>
-                {isRinging && (
-                  <p className="mt-2 text-sm text-yellow-600 animate-pulse">
-                    Ringing...
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -369,6 +367,16 @@ export default function MeetingUITestPage() {
           callType={incomingCall.callType === "AUDIO" ? "DIRECT" : "DIRECT"}
           onAccept={handleAcceptCall}
           onReject={handleRejectCall}
+        />
+      )}
+
+      {/* Outgoing Call Modal */}
+      {showOutgoingCall && (
+        <OutgoingCallModal
+          recipientName={outgoingRecipientName}
+          callType="DIRECT" // Assuming direct for now
+          status={isRinging ? 'ringing' : 'initiating'}
+          onCancel={handleCancelFromModal}
         />
       )}
 

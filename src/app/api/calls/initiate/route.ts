@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callService } from "@/services/callService";
 import { conversationService } from "@/services/conversationService";
 import { userService } from "@/services/userService";
 import { getAuthenticatedUser, verifyUserMatch } from "@/lib/auth/api-auth";
 import { publishToUsers } from "@/lib/appSync/appsync-server-client";
+import { callManager } from "@/lib/chime/callManager";
 import type { CallType } from "@/types/database";
 
 /**
@@ -112,8 +112,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create call record (use authenticated userId)
-    const call = await callService.createCall({
+    // Initiate call, which now creates the Chime meeting
+    const { call, meeting, attendee } = await callManager.initiateCall({
       callType,
       initiatedBy: auth.userId,
       participantIds,
@@ -135,17 +135,18 @@ export async function POST(req: NextRequest) {
       : "Unknown";
 
     // Determine call media type (AUDIO or VIDEO) - default to AUDIO for now
-    // This could be extended to accept mediaType in the request
     const mediaType = "AUDIO" as const;
 
-    // Notify the caller that the call is ringing
+    // Notify the caller that they are "connected" to the meeting immediately
     await publishToUsers(
       [auth.userId],
       "/calls",
       {
-        type: "CALL_RINGING",
+        type: "CALL_CONNECTED",
         data: {
           sessionId: call.sessionId,
+          meeting,
+          attendees: { [auth.userId]: attendee },
         },
       },
       auth.idToken
@@ -170,6 +171,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       call,
+      meeting,
+      attendee,
     });
   } catch (error) {
     console.error("Call initiation error:", error);

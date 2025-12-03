@@ -28,6 +28,10 @@ export interface Conversation {
   avatar: string | null; // S3 URL for group avatar
 }
 
+export interface ConversationWithNames extends Conversation {
+  participantNames: { [userId: string]: string };
+}
+
 export type ConversationType = "DM" | "GROUP";
 
 /**

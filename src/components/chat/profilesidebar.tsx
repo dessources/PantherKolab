@@ -18,12 +18,14 @@ interface ProfileSidebarProps {
   profileData: ProfileData | null;
   isVisible: boolean;
   onMessageClick?: () => void;
+  onCallClick?: (recipientId: string) => void; // New prop for initiating calls
 }
 
 export default function ProfileSidebar({
   profileData,
   isVisible,
   onMessageClick,
+  onCallClick,
 }: ProfileSidebarProps) {
   const hasData = profileData !== null;
 
@@ -36,7 +38,11 @@ export default function ProfileSidebar({
     {
       icon: <Phone className="w-5 h-5 text-white" />,
       label: "Audio",
-      onClick: () => console.log("Audio clicked"), // Placeholder
+      onClick: () => {
+        if (onCallClick && profileData) {
+          onCallClick(profileData.id);
+        }
+      },
     },
     {
       icon: (
@@ -55,7 +61,11 @@ export default function ProfileSidebar({
         </svg>
       ),
       label: "Video",
-      onClick: () => console.log("Video clicked"), // Placeholder
+      onClick: () => {
+        if (onCallClick && profileData) {
+          onCallClick(profileData.id);
+        }
+      },
     },
     {
       icon: <MoreVertical className="w-5 h-5 text-white" />,

@@ -52,6 +52,13 @@ interface UseMessagesReturn {
 const messageCache = new Map<string, Message[]>();
 const fetchedConversations = new Set<string>();
 
+// Helper to sort messages chronologically
+const sortMessages = (messages: Message[]) => {
+  return messages.sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+};
+
 /**
  * Hook to manage messages for a conversation with AppSync real-time
  *
@@ -100,7 +107,7 @@ export function useMessages({
       // Check cache first (unless force refresh)
       if (!forceRefresh && fetchedConversations.has(conversationId)) {
         const cached = messageCache.get(conversationId) || [];
-        setMessages(cached);
+        setMessages(sortMessages(cached)); // Ensure cache is sorted on retrieval
         return;
       }
 
@@ -121,14 +128,16 @@ export function useMessages({
         const fetchedMessages: Message[] = Array.isArray(data.messages)
           ? data.messages
           : Array.isArray(data)
-            ? data
-            : [];
+          ? data
+          : [];
+        
+        const sorted = sortMessages(fetchedMessages);
 
         // Update cache
-        messageCache.set(conversationId, fetchedMessages);
+        messageCache.set(conversationId, sorted);
         fetchedConversations.add(conversationId);
 
-        setMessages(fetchedMessages);
+        setMessages(sorted);
       } catch (err) {
         const error =
           err instanceof Error ? err : new Error("Failed to load messages");
@@ -164,20 +173,23 @@ export function useMessages({
             (tempId && m.messageId === tempId)
         );
 
+        let newCache: Message[];
         if (existingIndex >= 0) {
           // Replace optimistic message with real one
           const oldId = cached[existingIndex].messageId;
           cached[existingIndex] = newMessage;
           optimisticMessageIds.current.delete(oldId);
+          newCache = [...cached];
         } else {
-          cached.push(newMessage);
+          newCache = [...cached, newMessage];
         }
 
-        messageCache.set(convId, cached);
+        const sortedCache = sortMessages(newCache);
+        messageCache.set(convId, sortedCache);
 
         // Update state if this is the current conversation
         if (convId === conversationIdRef.current) {
-          setMessages([...cached]);
+          setMessages(sortedCache);
         }
       }
 
@@ -347,9 +359,10 @@ export function useMessages({
 
       // Add to cache and state immediately
       const cached = messageCache.get(conversationId) || [];
-      cached.push(optimisticMessage);
-      messageCache.set(conversationId, cached);
-      setMessages([...cached]);
+      const newCache = sortMessages([...cached, optimisticMessage]);
+      
+      messageCache.set(conversationId, newCache);
+      setMessages(newCache);
       optimisticMessageIds.current.add(tempId);
 
       try {
@@ -375,7 +388,7 @@ export function useMessages({
         const cached = messageCache.get(conversationId) || [];
         const filtered = cached.filter((m) => m.messageId !== tempId);
         messageCache.set(conversationId, filtered);
-        setMessages([...filtered]);
+        setMessages(filtered); // Already sorted, no need to re-sort on removal
         optimisticMessageIds.current.delete(tempId);
 
         const error =

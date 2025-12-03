@@ -19,17 +19,21 @@ import {
 } from "lucide-react";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import type { Message as DBMessage, Conversation } from "@/types/database";
+import Image from "next/image";
 
 interface MainChatAreaProps {
   selectedConversation: Conversation | null;
   messages: DBMessage[];
+  participantNames?: { [userId: string]: string } | null;
   messageInput: string;
   onMessageInputChange: (value: string) => void;
   onSendMessage: (content: string) => void;
   onToggleProfile: () => void;
-  loggedInUserInitials: string;
+  loggedInUserAvatarInitials: string;
+  loggedInUserId: string;
   isLoading?: boolean;
   error?: string;
+  onCallClick: () => void; // New prop for the call button
 }
 
 export interface MainChatAreaRef {
@@ -41,11 +45,14 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
     {
       selectedConversation,
       messages,
+      participantNames,
       onSendMessage,
       onToggleProfile,
-      loggedInUserInitials,
+      loggedInUserAvatarInitials,
+      loggedInUserId,
       isLoading,
       error,
+      onCallClick,
     },
     ref
   ) => {
@@ -106,9 +113,8 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
     };
 
     const handleCallClick = () => {
-      if (selectedConversation) {
-        console.log("Starting call with:", selectedConversation.name);
-        // TODO: Implement call functionality
+      if (onCallClick) {
+        onCallClick();
       }
     };
 
@@ -315,10 +321,7 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
           ) : (
             <>
               {messages.map((message) => {
-                const isOwn = message.senderId === loggedInUserInitials;
-                const senderInitials = isOwn
-                  ? loggedInUserInitials
-                  : message.senderId?.substring(0, 2).toUpperCase() || "??";
+                const isOwn = message.senderId === loggedInUserId;
 
                 return (
                   <div
@@ -334,7 +337,7 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:opacity-80 transition-opacity"
                         style={{ backgroundColor: "#0066CC" }}
                       >
-                        {senderInitials}
+                        {loggedInUserAvatarInitials}
                       </button>
                     )}
 
@@ -344,12 +347,13 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                         isOwn ? "items-end" : "items-start"
                       }`}
                     >
-                      {!isOwn && (
+                      {!isOwn && selectedConversation.type === "GROUP" && (
                         <button
                           onClick={onToggleProfile}
-                          className="text-xs font-semibold text-gray-700 mb-1 hover:underline"
+                          className="text-xs font-semibold text-gray-700 mb-1 hover:underline capitalize"
                         >
-                          {message.senderId}
+                          {participantNames?.[message.senderId] ||
+                            message.senderId}
                         </button>
                       )}
 
@@ -361,10 +365,12 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                         }`}
                       >
                         {message.type === "IMAGE" && message.mediaUrl ? (
-                          <img
+                          <Image
                             src={message.mediaUrl}
                             alt="Shared image"
                             className="rounded-lg max-w-xs"
+                            width={300}
+                            height={300}
                           />
                         ) : message.deleted ? (
                           <p className="text-sm leading-relaxed italic text-gray-500">
@@ -388,7 +394,7 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                         onClick={onToggleProfile}
                         className="w-8 h-8 rounded-full bg-[#FFB300] flex items-center justify-center text-gray-900 text-xs font-bold flex-shrink-0 hover:opacity-80 transition-opacity"
                       >
-                        {loggedInUserInitials}
+                        {loggedInUserAvatarInitials}
                       </button>
                     )}
                   </div>
@@ -405,7 +411,7 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
           {showEmojiPicker && (
             <div
               ref={emojiPickerRef}
-              className="absolute bottom-20 left-16 z-50"
+              className="absolute bottom-full right-8 mb-2 z-50"
             >
               <EmojiPicker onEmojiClick={handleEmojiSelect} />
             </div>
@@ -426,13 +432,25 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
             >
               <Paperclip className="w-5 h-5 text-gray-600" />
             </button>
-            <button
-              onClick={handleEmojiClick}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-              title="Add emoji"
-            >
-              <Smile className="w-5 h-5 text-gray-600" />
-            </button>
+            {/* Emoji button and picker container */}
+            <div className="relative">
+              <button
+                onClick={handleEmojiClick}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                title="Add emoji"
+              >
+                <Smile className="w-5 h-5 text-gray-600" />
+              </button>
+              {showEmojiPicker && (
+                <div
+                  ref={emojiPickerRef}
+                  className="absolute bottom-full right-0 mb-2 z-50"
+                >
+                  <EmojiPicker onEmojiClick={handleEmojiSelect} />
+                </div>
+              )}
+            </div>
+
             <input
               ref={textInputRef}
               type="text"
@@ -469,10 +487,12 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
               {/* File Preview */}
               <div className="mb-4">
                 {selectedFile.type.startsWith("image/") ? (
-                  <img
+                  <Image
                     src={URL.createObjectURL(selectedFile)}
                     alt="Preview"
                     className="max-h-96 w-full object-contain rounded-lg bg-gray-100"
+                    height={384}
+                    width={512}
                   />
                 ) : (
                   <div className="p-8 bg-gray-100 rounded-lg text-center">

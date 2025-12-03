@@ -67,7 +67,9 @@ export function combineSearchResults(
   const dbUserIds = new Set(dbUsers.map((u) => u.id));
 
   // Filter out recent users that are already in DB results
-  const uniqueRecentUsers = recentUsers.filter((user) => !dbUserIds.has(user.id));
+  const uniqueRecentUsers = recentUsers?.filter(
+    (user) => !dbUserIds.has(user.id)
+  );
 
   return {
     dbUsers,
@@ -78,6 +80,7 @@ export function combineSearchResults(
 /**
  * Debounce function for search input
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
   delay: number
