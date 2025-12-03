@@ -337,7 +337,20 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:opacity-80 transition-opacity"
                         style={{ backgroundColor: "#0066CC" }}
                       >
-                        {loggedInUserAvatarInitials}
+                        {(() => {
+                          // Get sender's name from participantNames map
+                          const senderName = participantNames?.[message.senderId];
+                          if (senderName) {
+                            // Extract initials from name (e.g., "John Doe" -> "JD")
+                            const names = senderName.split(' ');
+                            const initials = names.length >= 2
+                              ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+                              : senderName.substring(0, 2).toUpperCase();
+                            return initials;
+                          }
+                          // Fallback to first 2 characters of senderId
+                          return message.senderId.substring(0, 2).toUpperCase();
+                        })()}
                       </button>
                     )}
 

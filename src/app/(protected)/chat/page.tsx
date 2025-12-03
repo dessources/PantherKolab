@@ -292,6 +292,7 @@ export default function ChatPage() {
             currentUserId ? meetingData?.attendees?.[currentUserId] : undefined
           }
           localUserId={currentUserId}
+          participantNames={selectedConversation?.participantNames || {}}
           onEndCall={() => endCall(activeCall.sessionId!)}
           onLeaveCall={() => leaveCall(activeCall.sessionId!)}
           onSettingsClick={() => alert("Settings clicked")}

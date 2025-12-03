@@ -24,6 +24,7 @@ interface MeetingViewProps {
   meeting?: Meeting;
   attendee?: Attendee;
   localUserId?: string;
+  participantNames?: { [userId: string]: string }; // Map of userId to display name
   onEndCall: () => void;
   onLeaveCall?: () => void;
   onSettingsClick?: () => void;
@@ -37,6 +38,7 @@ export function MeetingView({
   isCallOwner,
   meeting,
   attendee,
+  participantNames = {},
   onEndCall,
   onLeaveCall,
   onSettingsClick,
@@ -80,17 +82,25 @@ export function MeetingView({
 
   // Map video tiles to participants (memoized to prevent recreation)
   const participants = useMemo(() => {
-    return videoTiles.map((tile) => ({
-      id: tile.attendeeId,
-      name: tile.isLocalTile
+    return videoTiles.map((tile) => {
+      // Extract userId from attendeeId (format: "userId#sessionId" or just "userId")
+      const userId = tile.attendeeId.split("#")[0];
+
+      // Get display name from participantNames map, fallback to userId or "Unknown"
+      const displayName = tile.isLocalTile
         ? "You"
-        : tile.attendeeId.split("#")[0] || "Unknown",
-      isLocal: tile.isLocalTile,
-      isMuted: tile.isLocalTile ? isMuted : false,
-      hasVideo: true,
-      tileId: tile.tileId,
-    }));
-  }, [videoTiles, isMuted]);
+        : participantNames[userId] || userId || "Unknown";
+
+      return {
+        id: tile.attendeeId,
+        name: displayName,
+        isLocal: tile.isLocalTile,
+        isMuted: tile.isLocalTile ? isMuted : false,
+        hasVideo: true,
+        tileId: tile.tileId,
+      };
+    });
+  }, [videoTiles, isMuted, participantNames]);
 
   // Use mock participants if no real tiles yet (for testing)
   const displayParticipants =

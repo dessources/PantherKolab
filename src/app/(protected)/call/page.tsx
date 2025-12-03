@@ -133,6 +133,7 @@ export default function CallPage() {
           meeting={meetingData.meeting}
           attendee={localUserId ? meetingData.attendees?.[localUserId] : undefined}
           localUserId={localUserId}
+          participantNames={{}} // Empty map for standalone calls - will display userIds
           onEndCall={handleEndCall}
           onLeaveCall={handleLeaveCall}
           onSettingsClick={() => alert("Settings clicked")}
