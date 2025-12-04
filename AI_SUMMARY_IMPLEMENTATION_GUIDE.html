@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Summary Feature - Implementation Guide for Antoine</title>
+    <style>
+      @media print {
+        body {
+          font-size: 11pt;
+        }
+        .no-print {
+          display: none;
+        }
+        .page-break {
+          page-break-before: always;
+        }
+        h1,
+        h2 {
+          page-break-after: avoid;
+        }
+        pre,
+        .code-block {
+          page-break-inside: avoid;
+        }
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        color: #333;
+      }
+
+      h1 {
+        color: #00376f;
+        border-bottom: 3px solid #00376f;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #0052a3;
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h3 {
+        color: #003366;
+        margin-top: 20px;
+      }
+
+      .status-box {
+        background: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 15px;
+        margin: 20px 0;
+      }
+
+      .warning-box {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 15px;
+        margin: 20px 0;
+      }
+
+      .error-box {
+        background: #ffebee;
+        border-left: 4px solid #f44336;
+        padding: 15px;
+        margin: 20px 0;
+      }
+
+      .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin: 20px 0;
+      }
+
+      .code-block {
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        overflow-x: auto;
+        margin: 10px 0;
+      }
+
+      .file-path {
+        background: #fffde7;
+        border-left: 3px solid #fbc02d;
+        padding: 8px 12px;
+        margin: 10px 0;
+        font-family: monospace;
+        font-weight: bold;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background: #00376f;
+        color: white;
+      }
+
+      tr:nth-child(even) {
+        background: #f9f9f9;
+      }
+
+      .checklist {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .checklist li {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .checklist li:before {
+        content: "☐ ";
+        font-size: 1.2em;
+        margin-right: 10px;
+        color: #00376f;
+      }
+
+      .phase {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 30px 0;
+      }
+
+      .phase h2 {
+        color: white;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        margin-top: 0;
+      }
+
+      .step {
+        background: white;
+        border-left: 4px solid #00376f;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+      }
+
+      .step h4 {
+        margin-top: 0;
+        color: #00376f;
+      }
+
+      code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+        color: #d32f2f;
+      }
+
+      .command {
+        background: #263238;
+        color: #aed581;
+        padding: 10px;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+        margin: 10px 0;
+      }
+
+      .success {
+        color: #4caf50;
+        font-weight: bold;
+      }
+
+      .pending {
+        color: #ff9800;
+        font-weight: bold;
+      }
+
+      @page {
+        margin: 2cm;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🤖 AI Summary Feature Implementation Guide</h1>
+
+    <div class="info-box">
+      <strong>For:</strong> Antoine (Full Stack Developer)<br />
+      <strong>Project:</strong> Kolab - Student Collaboration Platform<br />
+      <strong>Feature:</strong> AI-Powered Conversation Summary using AWS
+      Bedrock (Claude 3 Haiku)<br />
+      <strong>Estimated Time:</strong> 1 day<br />
+      <strong>Date:</strong> <span id="current-date"></span>
+    </div>
+
+    <h2>📋 Table of Contents</h2>
+    <ol>
+      <li><a href="#overview">Overview & Current Status</a></li>
+      <li><a href="#phase1">Phase 1: Install Dependencies</a></li>
+      <li><a href="#phase2">Phase 2: Create Summary Service</a></li>
+      <li><a href="#phase3">Phase 3: Build API Route</a></li>
+      <li><a href="#phase4">Phase 4: Create Frontend Component</a></li>
+      <li><a href="#phase5">Phase 5: Integration & Testing</a></li>
+      <li><a href="#troubleshooting">Troubleshooting Guide</a></li>
+      <li><a href="#checklist">Final Checklist</a></li>
+    </ol>
+
+    <div class="page-break"></div>
+
+    <h2 id="overview">📊 Overview & Current Status</h2>
+
+    <h3>What You're Building</h3>
+    <p>
+      An AI-powered feature that generates concise summaries of group chat
+      conversations using AWS Bedrock's Claude 3 Haiku model. This helps
+      students catch up on missed discussions quickly.
+    </p>
+
+    <div class="status-box">
+      <h4 class="success">✅ Already Set Up (by Jaem)</h4>
+      <ul>
+        <li>IAM permissions configured for Bedrock & DynamoDB</li>
+        <li>Bedrock model access approved (Claude 3 Haiku in us-east-1)</li>
+        <li>
+          DynamoDB tables created: <code>PantherKolab-Messages-dev</code>,
+          <code>PantherKolab-Summaries</code>
+        </li>
+        <li>AWS credentials generated and configured in Vercel</li>
+        <li>All permissions tested and verified working</li>
+      </ul>
+    </div>
+
+    <div class="warning-box">
+      <h4 class="pending">⚠️ What You Need to Build</h4>
+      <ul>
+        <li>Install AWS Bedrock SDK package</li>
+        <li>Create summary service with AI integration</li>
+        <li>Build API endpoint at <code>/api/summaries</code></li>
+        <li>Create React component for displaying summaries</li>
+        <li>Integrate with existing chat UI</li>
+        <li>Test end-to-end functionality</li>
+      </ul>
+    </div>
+
+    <h3>Technology Stack</h3>
+    <table>
+      <tr>
+        <th>Component</th>
+        <th>Technology</th>
+      </tr>
+      <tr>
+        <td>AI Model</td>
+        <td>
+          AWS Bedrock - Claude 3 Haiku (anthropic.claude-3-haiku-20240307-v1:0)
+        </td>
+      </tr>
+      <tr>
+        <td>Database</td>
+        <td>DynamoDB (PantherKolab-Messages-dev, PantherKolab-Summaries)</td>
+      </tr>
+      <tr>
+        <td>Backend</td>
+        <td>Next.js API Routes (/app/api/summaries/route.ts)</td>
+      </tr>
+      <tr>
+        <td>Frontend</td>
+        <td>React with TypeScript</td>
+      </tr>
+      <tr>
+        <td>Deployment</td>
+        <td>Vercel</td>
+      </tr>
+    </table>
+
+    <h3>Architecture Overview</h3>
+    <div class="code-block">
+      User clicks "Generate Summary" button ↓ Frontend calls POST /api/summaries
+      ↓ API authenticates user & validates permissions ↓ Check DynamoDB cache
+      for existing summary ↓ (if not cached) Fetch messages from
+      PantherKolab-Messages-dev ↓ Send to AWS Bedrock (Claude 3 Haiku) ↓ Receive
+      AI-generated summary ↓ Cache in PantherKolab-Summaries (7-day TTL) ↓
+      Return summary to frontend ↓ Display formatted summary to user
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="phase1">Phase 1: Install Dependencies</h2>
+
+    <div class="step">
+      <h4>Step 1.1: Install AWS Bedrock SDK</h4>
+      <p>Open your terminal in the project root directory and run:</p>
+      <div class="command">npm install @aws-sdk/client-bedrock-runtime</div>
+      <p>
+        <strong>Note:</strong> The other AWS SDK packages
+        (<code>@aws-sdk/client-dynamodb</code>,
+        <code>@aws-sdk/lib-dynamodb</code>) are already installed in the
+        project.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 1.2: Verify Installation</h4>
+      <p>Check that the package was added to <code>package.json</code>:</p>
+      <div class="command">grep "bedrock-runtime" package.json</div>
+      <p>
+        You should see:
+        <code>"@aws-sdk/client-bedrock-runtime": "^3.xxx.x"</code>
+      </p>
+    </div>
+
+    <div class="info-box">
+      <strong>Why Bedrock Runtime?</strong><br />
+      The <code>client-bedrock-runtime</code> package is specifically for
+      invoking AI models. It's separate from the control plane SDK
+      (<code>client-bedrock</code>) which is for managing models, not using
+      them.
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="phase2">Phase 2: Create Summary Service</h2>
+
+    <div class="step">
+      <h4>Step 2.1: Create Service File</h4>
+      <div class="file-path">📁 Create: src/services/summaryService.ts</div>
+      <p>
+        This file will contain all the business logic for summary generation.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.2: Service Structure Overview</h4>
+      <p>
+        Your service will export an object called
+        <code>summaryService</code> with the following methods:
+      </p>
+      <ul>
+        <li>
+          <code>generateSummary()</code> - Main method: checks cache, fetches
+          messages, generates summary
+        </li>
+        <li>
+          <code>fetchMessages()</code> - Queries DynamoDB for conversation
+          messages
+        </li>
+        <li>
+          <code>invokeClaude()</code> - Calls AWS Bedrock to generate summary
+        </li>
+        <li>
+          <code>getCachedSummary()</code> - Retrieves cached summary from
+          DynamoDB
+        </li>
+        <li>
+          <code>cacheSummary()</code> - Saves summary to DynamoDB with TTL
+        </li>
+        <li>
+          <code>createCacheKey()</code> - Generates unique cache key from
+          conversation ID + time range
+        </li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.3: Import Required Dependencies</h4>
+      <p>
+        At the top of <code>summaryService.ts</code>, you'll need these imports:
+      </p>
+      <div class="code-block">
+        import { BedrockRuntimeClient, InvokeModelCommand } from
+        "@aws-sdk/client-bedrock-runtime"; import { QueryCommand, PutCommand,
+        GetCommand } from "@aws-sdk/lib-dynamodb"; import {
+        getDynamoDBDocumentClient } from "@/lib/dynamodb"; import { Message }
+        from "@/types/database";
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.4: Initialize Bedrock Client</h4>
+      <p>
+        Create a Bedrock client instance that will be reused across function
+        calls:
+      </p>
+      <div class="code-block">
+        const bedrockClient = new BedrockRuntimeClient({ region:
+        process.env.AWS_REGION || "us-east-1", credentials: { accessKeyId:
+        process.env.AWS_ACCESS_KEY_ID!, secretAccessKey:
+        process.env.AWS_SECRET_ACCESS_KEY!, }, });
+      </div>
+      <p>
+        <strong>Why this works:</strong> The environment variables are already
+        configured in Vercel by Jaem.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.5: Define Constants</h4>
+      <div class="code-block">
+        const MESSAGES_TABLE = process.env.DYNAMODB_MESSAGES_TABLE ||
+        "PantherKolab-Messages-dev"; const SUMMARIES_TABLE =
+        "PantherKolab-Summaries"; // No -dev suffix! const MODEL_ID =
+        "anthropic.claude-3-haiku-20240307-v1:0"; const TTL_DAYS = 7;
+      </div>
+      <div class="warning-box">
+        <strong>⚠️ Important:</strong> Notice that
+        <code>SUMMARIES_TABLE</code> does NOT have a <code>-dev</code> suffix.
+        This is intentional per Jaem's setup.
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.6: Define TypeScript Interfaces</h4>
+      <p>Add these interface definitions for type safety:</p>
+      <div class="code-block">
+        interface SummaryRequest { conversationId: string; startTime?: string;
+        // ISO timestamp endTime?: string; // ISO timestamp userId: string; //
+        For authorization } interface SummaryResult { summary: string;
+        messageCount: number; cached: boolean; generatedAt: string;
+        conversationId: string; }
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <div class="step">
+      <h4>Step 2.7: Implement generateSummary() Method</h4>
+      <p>This is the main orchestrator method. It should:</p>
+      <ol>
+        <li>Create a cache key based on conversation ID and time range</li>
+        <li>Check if a cached summary exists</li>
+        <li>If cached, return it immediately with <code>cached: true</code></li>
+        <li>If not cached, fetch messages from DynamoDB</li>
+        <li>Generate summary using Claude</li>
+        <li>Cache the result</li>
+        <li>Return the summary</li>
+      </ol>
+      <p>
+        <strong>Pattern to follow:</strong> Look at
+        <code>src/services/messageService.ts</code> method
+        <code>getMessages()</code> for similar async/await patterns.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.8: Implement fetchMessages() Method</h4>
+      <p>Query DynamoDB for messages in a conversation:</p>
+      <ul>
+        <li>
+          Use <code>QueryCommand</code> (not <code>ScanCommand</code> for
+          performance)
+        </li>
+        <li>Filter by <code>conversationId</code> (partition key)</li>
+        <li>Optionally filter by <code>timestamp</code> range (sort key)</li>
+        <li>
+          Set <code>ScanIndexForward: true</code> to get oldest messages first
+        </li>
+      </ul>
+      <p>
+        <strong>Example to follow:</strong> See
+        <code>src/app/api/messages/[conversationId]/route.ts</code> lines 30-50
+        for DynamoDB query pattern.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.9: Implement invokeClaude() Method (AI INTEGRATION CODE)</h4>
+      <p>This method sends messages to Claude 3 Haiku for summarization:</p>
+
+      <h5>Input:</h5>
+      <p>Array of <code>Message</code> objects from DynamoDB</p>
+
+      <h5>Process:</h5>
+      <ol>
+        <li>Format messages into readable conversation text</li>
+        <li>Construct prompt with instructions for Claude</li>
+        <li>Create Bedrock request with proper format</li>
+        <li>Invoke model using <code>InvokeModelCommand</code></li>
+        <li>Parse response and extract summary text</li>
+        <li>Return summary string</li>
+      </ol>
+
+      <h5>Complete Implementation:</h5>
+      <div
+        class="code-block"
+        style="font-size: 11px; max-height: 500px; overflow-y: auto"
+      >
+        async invokeClaude(messages: Message[]): Promise&lt;string&gt; { //
+        Format messages for Claude const conversationText = messages .map((msg)
+        => { const timestamp = new Date(msg.timestamp).toLocaleString(); const
+        sender = msg.senderName || "Unknown User"; return `[${timestamp}]
+        ${sender}: ${msg.content}`; }) .join("\n"); // Construct prompt const
+        prompt = `You are an AI assistant helping students catch up on group
+        chat discussions. Analyze the following conversation and create a
+        concise summary. Focus on: - Key decisions made by the group - Action
+        items and who's responsible for them - Important deadlines or dates
+        mentioned - Main topics discussed - Questions that need answers or
+        unresolved issues Format your response as clear, actionable bullet
+        points. Use a friendly, student-oriented tone. Conversation:
+        ${conversationText} Please provide your summary:`; // Prepare request
+        body for Claude 3 const requestBody = { anthropic_version:
+        "bedrock-2023-05-31", max_tokens: 1024, messages: [ { role: "user",
+        content: prompt, }, ], temperature: 0.5, }; const command = new
+        InvokeModelCommand({ modelId: MODEL_ID, contentType: "application/json",
+        accept: "application/json", body: JSON.stringify(requestBody), }); try {
+        const response = await bedrockClient.send(command); const responseBody =
+        JSON.parse(new TextDecoder().decode(response.body)); // Claude 3
+        response format if (responseBody.content &&
+        responseBody.content[0]?.text) { return responseBody.content[0].text; }
+        throw new Error("Unexpected response format from Claude"); } catch
+        (error) { console.error("[Summary] Bedrock invocation error:", error);
+        throw new Error("Failed to generate summary with AI"); } }
+      </div>
+
+      <div class="info-box">
+        <strong>Key Points:</strong>
+        <ul>
+          <li>
+            <strong>Model ID:</strong>
+            <code>anthropic.claude-3-haiku-20240307-v1:0</code> is the fastest,
+            cheapest Claude model
+          </li>
+          <li>
+            <strong>Temperature:</strong> 0.5 provides balanced creativity vs
+            consistency
+          </li>
+          <li>
+            <strong>Max Tokens:</strong> 1024 is sufficient for a concise
+            summary
+          </li>
+          <li>
+            <strong>Response Format:</strong> Claude 3 returns
+            <code>{ content: [{ text: "summary here" }] }</code>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <div class="step">
+      <h4>Step 2.10: Implement getCachedSummary() Method</h4>
+      <p>Retrieve cached summary from DynamoDB:</p>
+      <ul>
+        <li>Use <code>GetCommand</code> with <code>summaryId</code> as key</li>
+        <li>Return <code>null</code> if not found (don't throw error)</li>
+        <li>Return <code>SummaryResult</code> if found</li>
+      </ul>
+      <p>
+        <strong>Pattern:</strong> See
+        <code>src/services/userService.ts</code> method
+        <code>getUserProfile()</code> for GetCommand usage.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.11: Implement cacheSummary() Method</h4>
+      <p>Save summary to DynamoDB with automatic expiration:</p>
+      <ul>
+        <li>Use <code>PutCommand</code></li>
+        <li>Calculate TTL as Unix timestamp (current time + 7 days)</li>
+        <li>Include all summary data plus <code>ttl</code> field</li>
+        <li>Don't throw errors on cache failures (log only)</li>
+      </ul>
+      <div class="code-block">
+        // Calculate TTL (7 days from now in Unix seconds) const ttl =
+        Math.floor(Date.now() / 1000) + TTL_DAYS * 24 * 60 * 60;
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.12: Implement createCacheKey() Method</h4>
+      <p>
+        Generate unique cache key from conversation ID and optional time range:
+      </p>
+      <ul>
+        <li>Format: <code>conversationId:startTime:endTime</code></li>
+        <li>If only conversationId: <code>conversationId:all</code></li>
+        <li>If only startTime: <code>conversationId:startTime:latest</code></li>
+      </ul>
+      <p>This ensures different time ranges get different cache entries.</p>
+    </div>
+
+    <div class="step">
+      <h4>Step 2.13: Export Service</h4>
+      <p>At the end of the file, export your service object:</p>
+      <div class="code-block">
+        export const summaryService = { generateSummary, fetchMessages,
+        invokeClaude, getCachedSummary, cacheSummary, createCacheKey, };
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="phase3">Phase 3: Build API Route</h2>
+
+    <div class="step">
+      <h4>Step 3.1: Create API Route Directory</h4>
+      <div class="file-path">📁 Create: src/app/api/summaries/route.ts</div>
+      <p>This follows Next.js 15 App Router conventions.</p>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.2: Import Required Dependencies</h4>
+      <div class="code-block">
+        import { NextRequest, NextResponse } from "next/server"; import {
+        getAuthenticatedUser } from "@/lib/auth/api-auth"; import {
+        summaryService } from "@/services/summaryService"; import {
+        conversationService } from "@/services/conversationService";
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.3: Implement POST Handler</h4>
+      <p>Your API route should handle POST requests with this flow:</p>
+      <ol>
+        <li>
+          <strong>Authenticate:</strong> Use <code>getAuthenticatedUser()</code>
+        </li>
+        <li>
+          <strong>Parse Body:</strong> Extract <code>conversationId</code>,
+          <code>startTime</code>, <code>endTime</code>
+        </li>
+        <li><strong>Validate:</strong> Check conversationId is provided</li>
+        <li>
+          <strong>Authorize:</strong> Verify user is a participant in the
+          conversation
+        </li>
+        <li>
+          <strong>Generate Summary:</strong> Call
+          <code>summaryService.generateSummary()</code>
+        </li>
+        <li><strong>Return Response:</strong> Send JSON with summary data</li>
+      </ol>
+      <p>
+        <strong>Pattern to follow:</strong> See
+        <code>src/app/api/messages/send/route.ts</code> for authentication and
+        authorization flow.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.4: Authentication Check</h4>
+      <div class="code-block">
+        const auth = await getAuthenticatedUser(); if (!auth) { return
+        NextResponse.json( { success: false, error: "Unauthorized" }, { status:
+        401 } ); }
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.5: Parse and Validate Request Body</h4>
+      <div class="code-block">
+        const body = await request.json(); const { conversationId, startTime,
+        endTime } = body; if (!conversationId) { return NextResponse.json( {
+        success: false, error: "conversationId is required" }, { status: 400 }
+        ); }
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.6: Verify User Authorization</h4>
+      <p>Check that the user is a participant in the conversation:</p>
+      <div class="code-block">
+        const conversation = await
+        conversationService.getConversation(conversationId); if (!conversation)
+        { return NextResponse.json( { success: false, error: "Conversation not
+        found" }, { status: 404 } ); } const isParticipant =
+        conversation.participantIds.includes(auth.userId); if (!isParticipant) {
+        return NextResponse.json( { success: false, error: "You are not a
+        participant in this conversation" }, { status: 403 } ); }
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.7: Call Summary Service</h4>
+      <div class="code-block">
+        console.log(`[API] Generating summary for conversation
+        ${conversationId}`); const summary = await
+        summaryService.generateSummary({ conversationId, startTime, endTime,
+        userId: auth.userId, });
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.8: Return Success Response</h4>
+      <div class="code-block">
+        return NextResponse.json({ success: true, summary: summary.summary,
+        messageCount: summary.messageCount, cached: summary.cached, generatedAt:
+        summary.generatedAt, });
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 3.9: Add Error Handling</h4>
+      <p>Wrap everything in try-catch and handle specific errors:</p>
+      <div class="code-block">
+        catch (error) { console.error("[API] Summary generation error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to
+        generate summary"; // Handle specific errors if
+        (errorMessage.includes("No messages found")) { return NextResponse.json(
+        { success: false, error: "No messages found in the specified time range"
+        }, { status: 404 } ); } return NextResponse.json( { success: false,
+        error: errorMessage }, { status: 500 } ); }
+      </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="phase4">Phase 4: Create Frontend Component</h2>
+
+    <div class="step">
+      <h4>Step 4.1: Create Component File</h4>
+      <div class="file-path">📁 Create: src/components/SummaryButton.tsx</div>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.2: Component Structure</h4>
+      <p>Your component will manage three states:</p>
+      <ol>
+        <li><strong>Initial:</strong> Show "Generate Summary" button</li>
+        <li>
+          <strong>Loading:</strong> Show spinner with "Generating..." message
+        </li>
+        <li>
+          <strong>Success:</strong> Display formatted summary with metadata
+        </li>
+        <li><strong>Error:</strong> Show error message with retry option</li>
+      </ol>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.3: Required Imports</h4>
+      <div class="code-block">
+        "use client"; import { useState } from "react"; import { Sparkles,
+        Loader2, AlertCircle } from "lucide-react";
+      </div>
+      <p>
+        <strong>Note:</strong> <code>lucide-react</code> is already installed in
+        the project.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.4: Define Component Props</h4>
+      <div class="code-block">
+        interface SummaryButtonProps { conversationId: string;
+        onSummaryGenerated?: (summary: string) => void; }
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.5: Define State Variables</h4>
+      <div class="code-block">
+        const [loading, setLoading] = useState(false); const [summary,
+        setSummary] = useState&lt;string | null&gt;(null); const [error,
+        setError] = useState&lt;string | null&gt;(null); const [metadata,
+        setMetadata] = useState&lt;{ messageCount: number; cached: boolean } |
+        null&gt;(null);
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.6: Implement generateSummary Function</h4>
+      <p>This function calls your API endpoint:</p>
+      <ol>
+        <li>Set loading state</li>
+        <li>Make POST request to <code>/api/summaries</code></li>
+        <li>Handle response (success or error)</li>
+        <li>Update UI state accordingly</li>
+        <li>Call optional callback with summary</li>
+      </ol>
+      <p>
+        <strong>Pattern:</strong> See
+        <code>src/hooks/useMessages.ts</code> method
+        <code>sendMessage()</code> for fetch API usage.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.7: Render Initial State (Button)</h4>
+      <div class="code-block">
+        {!summary && !loading && ( &lt;button onClick={generateSummary}
+        disabled={loading} className="flex items-center gap-2 px-4 py-2
+        bg-[#00376f] text-white rounded-lg hover:bg-[#0052A3] transition-colors
+        cursor-pointer disabled:opacity-50" &gt; &lt;Sparkles className="w-4
+        h-4" /&gt; &lt;span&gt;Generate AI Summary&lt;/span&gt; &lt;/button&gt;
+        )}
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.8: Render Loading State</h4>
+      <div class="code-block">
+        {loading && ( &lt;div className="flex items-center gap-3
+        text-gray-600"&gt; &lt;Loader2 className="w-5 h-5 animate-spin" /&gt;
+        &lt;span&gt;Generating summary with Claude AI...&lt;/span&gt;
+        &lt;/div&gt; )}
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.9: Render Error State</h4>
+      <div class="code-block">
+        {error && ( &lt;div className="flex items-start gap-3 p-4 bg-red-50
+        border border-red-200 rounded-lg"&gt; &lt;AlertCircle className="w-5 h-5
+        text-red-600 flex-shrink-0 mt-0.5" /&gt; &lt;div&gt; &lt;p
+        className="font-medium text-red-900"&gt;Failed to generate
+        summary&lt;/p&gt; &lt;p className="text-sm text-red-700
+        mt-1"&gt;{error}&lt;/p&gt; &lt;/div&gt; &lt;/div&gt; )}
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 4.10: Render Summary Display</h4>
+      <p>Show the generated summary with formatting:</p>
+      <ul>
+        <li>Display summary text with proper whitespace handling</li>
+        <li>Show "Cached" badge if <code>metadata.cached === true</code></li>
+        <li>Include message count</li>
+        <li>Provide close button to dismiss summary</li>
+      </ul>
+      <p>
+        <strong>Styling:</strong> Follow the existing component styles in
+        <code>src/components/mock/</code> directory.
+      </p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="phase5">Phase 5: Integration & Testing</h2>
+
+    <div class="step">
+      <h4>Step 5.1: Find Chat Window Component</h4>
+      <p>Locate the main chat UI component:</p>
+      <div class="file-path">📁 File: src/components/mock/ChatWindow.tsx</div>
+      <p>This is where you'll integrate the SummaryButton.</p>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.2: Import SummaryButton</h4>
+      <div class="code-block">
+        import { SummaryButton } from "@/components/SummaryButton";
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.3: Add Component to UI</h4>
+      <p>Place the SummaryButton at the top of the message list area:</p>
+      <div class="code-block">
+        &lt;div className="flex-1 flex flex-col"&gt; {/* Add summary button here
+        */} &lt;SummaryButton conversationId={conversationId}
+        onSummaryGenerated={(summary) => { console.log("Summary generated:",
+        summary); // Optional: Show toast notification }} /&gt; {/* Existing
+        message list */} &lt;MessageList messages={messages} /&gt; {/* Existing
+        message input */} &lt;MessageInput onSend={handleSend} /&gt;
+        &lt;/div&gt;
+      </div>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.4: Verify Environment Variables</h4>
+      <p>
+        Check that your <code>.env.local</code> file has these variables (for
+        local development):
+      </p>
+      <div class="code-block">
+        AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=&lt;your-key-from-Jaem&gt;
+        AWS_SECRET_ACCESS_KEY=&lt;your-secret-from-Jaem&gt;
+        DYNAMODB_MESSAGES_TABLE=PantherKolab-Messages-dev # Other existing
+        vars... NEXT_PUBLIC_COGNITO_USER_POOL_ID=...
+        NEXT_PUBLIC_COGNITO_CLIENT_ID=... etc.
+      </div>
+      <p>
+        <strong>Note:</strong> These same variables should already be configured
+        in Vercel for production.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.5: Start Development Server</h4>
+      <div class="command">npm run dev</div>
+      <p>
+        Wait for the server to start, then navigate to
+        <code>http://localhost:3000</code>
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.6: Test Basic Functionality</h4>
+      <ol>
+        <li>Log in to your application</li>
+        <li>Navigate to a group conversation that has messages</li>
+        <li>Look for the "Generate AI Summary" button</li>
+        <li>Click the button</li>
+        <li>Verify loading state appears</li>
+        <li>Wait for summary generation (should take 5-10 seconds)</li>
+        <li>Verify summary displays correctly</li>
+      </ol>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.7: Test Caching</h4>
+      <ol>
+        <li>Close the summary (click close button)</li>
+        <li>Click "Generate AI Summary" again</li>
+        <li>Verify response is instant (< 1 second)</li>
+        <li>Verify "Cached" badge appears</li>
+      </ol>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.8: Check Browser Console</h4>
+      <p>Open DevTools (F12) and look for console logs:</p>
+      <ul>
+        <li><code>[API] Generating summary for conversation conv-xxx</code></li>
+        <li>
+          <code>[Summary] Cache hit for conv-xxx:all</code> (on second request)
+        </li>
+        <li><code>[Summary] Cached summary conv-xxx:all with TTL ...</code></li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.9: Check Network Tab</h4>
+      <p>
+        In DevTools Network tab, find the request to
+        <code>/api/summaries</code>:
+      </p>
+      <ul>
+        <li>Method: POST</li>
+        <li>Status: 200</li>
+        <li>
+          Response should include <code>summary</code>,
+          <code>messageCount</code>, <code>cached</code>
+        </li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.10: Test Error Scenarios</h4>
+      <p>Test these edge cases:</p>
+      <ul>
+        <li>
+          <strong>No messages:</strong> Create a new empty conversation, try to
+          generate summary
+        </li>
+        <li>
+          <strong>Unauthorized:</strong> Try to access summary for conversation
+          you're not in (requires API testing)
+        </li>
+        <li>
+          <strong>Network error:</strong> Temporarily disconnect internet,
+          verify error message displays
+        </li>
+      </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <div class="step">
+      <h4>Step 5.11: Deploy to Vercel</h4>
+      <p>Once local testing is successful, deploy to production:</p>
+      <div class="command">
+        git add . git commit -m "feat: Add AI summary feature with Claude 3
+        Haiku" git push origin main
+      </div>
+      <p>
+        Vercel will automatically deploy your changes. Monitor the deployment in
+        the Vercel dashboard.
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>Step 5.12: Verify Production Deployment</h4>
+      <ol>
+        <li>Wait for Vercel deployment to complete</li>
+        <li>Visit your production URL</li>
+        <li>Test the summary feature in production</li>
+        <li>Check Vercel logs for any errors</li>
+      </ol>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="troubleshooting">🔧 Troubleshooting Guide</h2>
+
+    <h3>Problem: "Unauthorized" Error</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> API returns 401 status code<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>User is not logged in</li>
+        <li>Authentication token is expired or invalid</li>
+        <li><code>getAuthenticatedUser()</code> is not working correctly</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>Verify user is logged in (check for auth token in cookies)</li>
+        <li>Log out and log back in to get fresh token</li>
+        <li>
+          Add debug logging: <code>console.log("Auth result:", auth)</code>
+        </li>
+        <li>
+          Check that Cognito configuration is correct in environment variables
+        </li>
+      </ul>
+    </div>
+
+    <h3>Problem: "No messages found"</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> API returns 404 with message about no messages
+      found<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>Conversation actually has no messages</li>
+        <li>Wrong conversation ID being sent</li>
+        <li>Time range filters are excluding all messages</li>
+        <li>DynamoDB table name is incorrect</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>Verify conversation has messages in DynamoDB console</li>
+        <li>
+          Log the conversation ID:
+          <code>console.log("ConversationId:", conversationId)</code>
+        </li>
+        <li>
+          Remove <code>startTime</code>/<code>endTime</code> filters temporarily
+        </li>
+        <li>
+          Verify <code>DYNAMODB_MESSAGES_TABLE</code> environment variable is
+          correct
+        </li>
+      </ul>
+    </div>
+
+    <h3>Problem: Bedrock Invocation Fails</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> Error like "AccessDeniedException" or
+      "ModelNotFound"<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>AWS credentials are incorrect or missing</li>
+        <li>IAM permissions don't include Bedrock access</li>
+        <li>Wrong AWS region (Bedrock not available in that region)</li>
+        <li>Model ID is incorrect</li>
+        <li>Bedrock model access not requested</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>Verify environment variables in Vercel dashboard</li>
+        <li>
+          Check IAM policy includes <code>bedrock:InvokeModel</code> permission
+        </li>
+        <li>
+          Ensure region is <code>us-east-1</code> (where Claude 3 Haiku is
+          available)
+        </li>
+        <li>
+          Verify model ID: <code>anthropic.claude-3-haiku-20240307-v1:0</code>
+        </li>
+        <li>Contact Jaem to verify Bedrock access is approved</li>
+      </ul>
+    </div>
+
+    <h3>Problem: DynamoDB Errors</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> "ResourceNotFoundException" or
+      "AccessDeniedException"<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>Table doesn't exist</li>
+        <li>Table name is incorrect (watch for <code>-dev</code> suffix)</li>
+        <li>IAM permissions don't include DynamoDB access</li>
+        <li>Wrong AWS region</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>
+          Verify table names:
+          <ul>
+            <li>Messages: <code>PantherKolab-Messages-dev</code></li>
+            <li>Summaries: <code>PantherKolab-Summaries</code> (NO -dev)</li>
+          </ul>
+        </li>
+        <li>Check tables exist in DynamoDB console</li>
+        <li>
+          Verify IAM policy includes <code>dynamodb:Query</code>,
+          <code>dynamodb:GetItem</code>, <code>dynamodb:PutItem</code>
+        </li>
+      </ul>
+    </div>
+
+    <h3>Problem: Summary is Empty or Malformed</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> Summary displays but content is weird or
+      empty<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>Response parsing error</li>
+        <li>Claude returned unexpected format</li>
+        <li>Messages weren't formatted correctly for Claude</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>
+          Log the raw Bedrock response:
+          <code>console.log("Bedrock response:", responseBody)</code>
+        </li>
+        <li>Verify response has <code>content[0].text</code> structure</li>
+        <li>Check message formatting in <code>invokeClaude()</code> method</li>
+      </ul>
+    </div>
+
+    <h3>Problem: Caching Not Working</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> Every summary request takes 5-10 seconds
+      (should be instant on repeat)<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>Cache key is changing each time</li>
+        <li>Cache save is failing silently</li>
+        <li>TTL already expired</li>
+        <li>Wrong table name for summaries</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>Log cache key: <code>console.log("Cache key:", cacheKey)</code></li>
+        <li>Check if <code>cacheSummary()</code> is being called</li>
+        <li>Verify summaries table in DynamoDB console has items</li>
+        <li>Check TTL is set correctly (7 days in future)</li>
+        <li>
+          Ensure table name is <code>PantherKolab-Summaries</code> (no -dev)
+        </li>
+      </ul>
+    </div>
+
+    <h3>Problem: Frontend Component Not Rendering</h3>
+    <div class="error-box">
+      <strong>Symptoms:</strong> Summary button doesn't appear in UI<br /><br />
+      <strong>Possible Causes:</strong>
+      <ul>
+        <li>Import path is wrong</li>
+        <li>Component not added to ChatWindow</li>
+        <li>Conversation ID is undefined</li>
+        <li>TypeScript errors preventing compilation</li>
+      </ul>
+      <strong>Solutions:</strong>
+      <ul>
+        <li>
+          Check import path:
+          <code
+            >import { SummaryButton } from "@/components/SummaryButton"</code
+          >
+        </li>
+        <li>Verify component is inside JSX return statement</li>
+        <li>
+          Log conversation ID:
+          <code
+            >console.log("ConversationId for summary:", conversationId)</code
+          >
+        </li>
+        <li>Run <code>npm run build</code> to check for TypeScript errors</li>
+        <li>Check browser console for React errors</li>
+      </ul>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 id="checklist">✅ Final Checklist</h2>
+
+    <h3>Development Checklist</h3>
+    <ul class="checklist">
+      <li>Installed <code>@aws-sdk/client-bedrock-runtime</code> package</li>
+      <li>
+        Created <code>src/services/summaryService.ts</code> with all methods
+      </li>
+      <li>Implemented Bedrock client initialization</li>
+      <li>Implemented <code>invokeClaude()</code> with proper prompt</li>
+      <li>Implemented message fetching from DynamoDB</li>
+      <li>Implemented caching with TTL</li>
+      <li>Created <code>src/app/api/summaries/route.ts</code></li>
+      <li>Added authentication check in API route</li>
+      <li>Added authorization check (user is participant)</li>
+      <li>Implemented error handling in API route</li>
+      <li>Created <code>src/components/SummaryButton.tsx</code></li>
+      <li>Implemented loading state in component</li>
+      <li>Implemented error state in component</li>
+      <li>Implemented summary display in component</li>
+      <li>Integrated SummaryButton into ChatWindow</li>
+    </ul>
+
+    <h3>Testing Checklist</h3>
+    <ul class="checklist">
+      <li>Tested summary generation locally (dev server)</li>
+      <li>Verified summary displays correctly</li>
+      <li>Tested caching (second request is instant)</li>
+      <li>Verified "Cached" badge appears</li>
+      <li>Tested error handling (no messages)</li>
+      <li>Tested error handling (unauthorized access)</li>
+      <li>Checked browser console for errors</li>
+      <li>Checked network requests are successful</li>
+      <li>Verified loading states work properly</li>
+      <li>Tested on different conversation sizes (small, medium, large)</li>
+    </ul>
+
+    <h3>Deployment Checklist</h3>
+    <ul class="checklist">
+      <li>Committed all changes to git</li>
+      <li>Pushed to GitHub</li>
+      <li>Verified Vercel deployment succeeded</li>
+      <li>Tested feature in production environment</li>
+      <li>Checked production logs for errors</li>
+      <li>Verified production uses same AWS credentials</li>
+    </ul>
+
+    <h3>Documentation Checklist</h3>
+    <ul class="checklist">
+      <li>Added comments to complex code sections</li>
+      <li>Updated README if necessary</li>
+      <li>Documented any environment variable requirements</li>
+      <li>Noted any assumptions or limitations</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>📊 Success Metrics</h2>
+
+    <p>Your implementation is successful when:</p>
+
+    <table>
+      <tr>
+        <th>Metric</th>
+        <th>Target</th>
+        <th>How to Verify</th>
+      </tr>
+      <tr>
+        <td>Summary Generation Time</td>
+        <td>< 10 seconds</td>
+        <td>Use browser DevTools Network tab to measure API response time</td>
+      </tr>
+      <tr>
+        <td>Cached Summary Time</td>
+        <td>< 1 second</td>
+        <td>Generate same summary twice, measure second request time</td>
+      </tr>
+      <tr>
+        <td>Summary Quality</td>
+        <td>Readable, actionable</td>
+        <td>Review generated summaries for clarity and usefulness</td>
+      </tr>
+      <tr>
+        <td>Error Rate</td>
+        <td>< 5%</td>
+        <td>Check production logs after deployment</td>
+      </tr>
+      <tr>
+        <td>Cache Hit Rate</td>
+        <td>> 30%</td>
+        <td>Monitor DynamoDB summaries table, check for repeated queries</td>
+      </tr>
+    </table>
+
+    <h2>🎯 Next Steps (Optional Enhancements)</h2>
+
+    <p>After the basic feature is working, consider these improvements:</p>
+
+    <h3>Enhancement 1: Time Range Filters</h3>
+    <p>Allow users to summarize specific time periods:</p>
+    <ul>
+      <li>
+        Add dropdown: "Last 24 hours", "Last week", "Last month", "All time"
+      </li>
+      <li>
+        Update API call to include <code>startTime</code> and
+        <code>endTime</code>
+      </li>
+      <li>Update cache key generation to include time range</li>
+    </ul>
+
+    <h3>Enhancement 2: Summary History</h3>
+    <p>Show previously generated summaries:</p>
+    <ul>
+      <li>Add "View Past Summaries" button</li>
+      <li>Query DynamoDB summaries table for conversation</li>
+      <li>Display list of summaries with timestamps</li>
+    </ul>
+
+    <h3>Enhancement 3: Real-time Updates</h3>
+    <p>Notify users when summary is generated (for slow connections):</p>
+    <ul>
+      <li>Define new AppSync event type: <code>SUMMARY_GENERATED</code></li>
+      <li>Publish event from API route after summary is created</li>
+      <li>Subscribe to event in frontend</li>
+      <li>Show toast notification when summary is ready</li>
+    </ul>
+
+    <h3>Enhancement 4: Export Summary</h3>
+    <p>Let users copy or download summaries:</p>
+    <ul>
+      <li>Add "Copy to Clipboard" button</li>
+      <li>Add "Download as PDF" button</li>
+      <li>Add "Share via Email" button</li>
+    </ul>
+
+    <h3>Enhancement 5: Custom Prompts</h3>
+    <p>Allow users to customize what to focus on:</p>
+    <ul>
+      <li>
+        Add checkboxes: "Focus on decisions", "Focus on action items", etc.
+      </li>
+      <li>Modify Claude prompt based on user selections</li>
+      <li>Update cache key to include prompt customization</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>📞 Getting Help</h2>
+
+    <div class="info-box">
+      <h4>If You Get Stuck:</h4>
+      <ol>
+        <li>
+          <strong>Check the Console:</strong> Both browser console and server
+          logs (Vercel dashboard)
+        </li>
+        <li>
+          <strong>Review Existing Code:</strong> Look at similar patterns in
+          <code>messageService.ts</code> and <code>conversationService.ts</code>
+        </li>
+        <li>
+          <strong>AWS Documentation:</strong>
+          <ul>
+            <li>
+              Bedrock:
+              <code>https://docs.aws.amazon.com/bedrock/latest/userguide/</code>
+            </li>
+            <li>
+              DynamoDB: <code>https://docs.aws.amazon.com/dynamodb/</code>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Test Components Separately:</strong>
+          <ul>
+            <li>Test DynamoDB queries first (can use AWS console)</li>
+            <li>Test Bedrock invocation separately</li>
+            <li>Test API route with Postman/curl</li>
+            <li>Test frontend component in isolation</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Contact Jaem:</strong> For AWS-related issues (permissions,
+          credentials, table access)
+        </li>
+      </ol>
+    </div>
+
+    <h2>🚀 Quick Reference</h2>
+
+    <h3>Important File Paths</h3>
+    <div class="code-block">
+      src/services/summaryService.ts # AI integration & business logic
+      src/app/api/summaries/route.ts # API endpoint
+      src/components/SummaryButton.tsx # Frontend UI component
+      src/components/mock/ChatWindow.tsx # Integration point
+      src/lib/dynamodb/index.ts # DynamoDB client (already exists)
+      src/lib/auth/api-auth.ts # Authentication helper (already exists)
+      src/types/database.ts # Database types (already exists)
+    </div>
+
+    <h3>Key Commands</h3>
+    <div class="code-block">
+      # Install dependencies npm install @aws-sdk/client-bedrock-runtime # Run
+      development server npm run dev # Build for production (check for errors)
+      npm run build # Deploy to Vercel git add . && git commit -m "feat: Add AI
+      summary" && git push origin main
+    </div>
+
+    <h3>Environment Variables</h3>
+    <div class="code-block">
+      AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=&lt;from-Jaem&gt;
+      AWS_SECRET_ACCESS_KEY=&lt;from-Jaem&gt;
+      DYNAMODB_MESSAGES_TABLE=PantherKolab-Messages-dev # Summaries table:
+      PantherKolab-Summaries (no -dev suffix!)
+    </div>
+
+    <h3>DynamoDB Table Reference</h3>
+    <table>
+      <tr>
+        <th>Table Name</th>
+        <th>Partition Key</th>
+        <th>Sort Key</th>
+        <th>Notes</th>
+      </tr>
+      <tr>
+        <td>PantherKolab-Messages-dev</td>
+        <td>conversationId</td>
+        <td>timestamp</td>
+        <td>Source of messages to summarize</td>
+      </tr>
+      <tr>
+        <td>PantherKolab-Summaries</td>
+        <td>summaryId</td>
+        <td>-</td>
+        <td>Cache storage (TTL enabled on <code>ttl</code> field)</td>
+      </tr>
+    </table>
+
+    <h3>Claude 3 Haiku Details</h3>
+    <table>
+      <tr>
+        <th>Property</th>
+        <th>Value</th>
+      </tr>
+      <tr>
+        <td>Model ID</td>
+        <td>anthropic.claude-3-haiku-20240307-v1:0</td>
+      </tr>
+      <tr>
+        <td>Region</td>
+        <td>us-east-1</td>
+      </tr>
+      <tr>
+        <td>Max Tokens</td>
+        <td>1024 (sufficient for summary)</td>
+      </tr>
+      <tr>
+        <td>Temperature</td>
+        <td>0.5 (balanced creativity)</td>
+      </tr>
+      <tr>
+        <td>Pricing</td>
+        <td>
+          $0.00025/1K input tokens, $0.00125/1K output tokens (very cheap)
+        </td>
+      </tr>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>✨ Final Notes</h2>
+
+    <div class="status-box">
+      <h4>You're Ready!</h4>
+      <p>
+        The Kolab codebase is well-structured and has solid patterns to follow.
+        All the infrastructure (AWS, DynamoDB, authentication) is already set up
+        by Jaem. You just need to implement the three components:
+      </p>
+      <ol>
+        <li>
+          <strong>Service Layer</strong> - Business logic with AI integration
+        </li>
+        <li><strong>API Route</strong> - HTTP endpoint with auth/validation</li>
+        <li>
+          <strong>Frontend Component</strong> - User interface with loading
+          states
+        </li>
+      </ol>
+      <p>
+        Follow the existing patterns in the codebase, use this guide as
+        reference, and you'll have this working within a day!
+      </p>
+    </div>
+
+    <div class="info-box">
+      <h4>Project Timeline (Estimated)</h4>
+      <ul>
+        <li>
+          <strong>Hour 1-2:</strong> Install dependencies, create service file,
+          implement basic structure
+        </li>
+        <li>
+          <strong>Hour 3-4:</strong> Implement Bedrock integration and DynamoDB
+          queries
+        </li>
+        <li><strong>Hour 5-6:</strong> Create API route with authentication</li>
+        <li>
+          <strong>Hour 7-8:</strong> Build frontend component and integrate with
+          ChatWindow
+        </li>
+        <li><strong>Hour 9:</strong> Local testing and debugging</li>
+        <li><strong>Hour 10:</strong> Deploy to production and verify</li>
+      </ul>
+      <p>
+        <strong>Total:</strong> 1 development day (with time for breaks and
+        debugging)
+      </p>
+    </div>
+
+    <hr />
+
+    <p style="text-align: center; color: #666; margin-top: 40px">
+      <strong>Good luck, Antoine!</strong><br />
+      This feature will make a real difference for students trying to stay
+      caught up with their study groups. 🎓
+    </p>
+
+    <script>
+      // Add current date
+      document.getElementById("current-date").textContent =
+        new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+    </script>
+  </body>
+</html>

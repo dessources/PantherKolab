@@ -24,6 +24,7 @@ interface MeetingViewProps {
   meeting?: Meeting;
   attendee?: Attendee;
   localUserId?: string;
+  participantNames?: { [userId: string]: string }; // Map of userId to display name
   onEndCall: () => void;
   onLeaveCall?: () => void;
   onSettingsClick?: () => void;
@@ -37,6 +38,7 @@ export function MeetingView({
   isCallOwner,
   meeting,
   attendee,
+  participantNames = {},
   onEndCall,
   onLeaveCall,
   onSettingsClick,
@@ -80,22 +82,41 @@ export function MeetingView({
 
   // Map video tiles to participants (memoized to prevent recreation)
   const participants = useMemo(() => {
-    return videoTiles.map((tile) => ({
-      id: tile.attendeeId,
-      name: tile.isLocalTile
+    return videoTiles.map((tile) => {
+      // Extract userId from attendeeId (format: "userId#sessionId" or just "userId")
+      const userId = tile.attendeeId.split("#")[0];
+
+      // Get display name from participantNames map, fallback to userId or "Unknown"
+      const displayName = tile.isLocalTile
         ? "You"
-        : tile.attendeeId.split("#")[0] || "Unknown",
-      isLocal: tile.isLocalTile,
-      isMuted: tile.isLocalTile ? isMuted : false,
-      hasVideo: true,
-      tileId: tile.tileId,
-    }));
-  }, [videoTiles, isMuted]);
+        : participantNames[userId] || userId || "Unknown";
+
+      return {
+        id: tile.attendeeId,
+        name: displayName,
+        isLocal: tile.isLocalTile,
+        isMuted: tile.isLocalTile ? isMuted : false,
+        hasVideo: true,
+        tileId: tile.tileId,
+      };
+    });
+  }, [videoTiles, isMuted, participantNames]);
 
   // Use mock participants if no real tiles yet (for testing)
   const displayParticipants =
     participants.length > 0 ? participants : mockParticipants || [];
   const displayActiveSpeakerId = activeSpeakerId || mockActiveSpeakerId;
+
+  // Calculate grid layout based on participant count
+  const participantCount = displayParticipants.length;
+  const getGridClasses = () => {
+    if (participantCount === 1) return "grid-cols-1";
+    if (participantCount === 2) return "grid-cols-1 lg:grid-cols-2";
+    if (participantCount === 3) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+    if (participantCount === 4) return "grid-cols-1 sm:grid-cols-2";
+    // 5+ participants: use standard responsive grid
+    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50">
@@ -110,9 +131,9 @@ export function MeetingView({
       />
 
       {/* Participants Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex-1 overflow-hidden flex items-center justify-center p-4 lg:p-6">
+        <div className={`w-full h-full ${participantCount <= 4 ? 'max-w-full' : 'max-w-7xl'}`}>
+          <div className={`grid ${getGridClasses()} gap-3 lg:gap-4 h-full ${participantCount <= 4 ? 'content-center' : ''}`}>
             {displayParticipants.map((participant) => (
               <ParticipantTile
                 key={participant.id}

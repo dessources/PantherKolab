@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
     const newUser = await userService.createUser({
       userId: auth.userId,
       email: auth.email || body.email, // Prefer email from token
-      firstName,
-      lastName,
+      firstName: firstName.toLowerCase(),
+      lastName: lastName.toLowerCase(),
     });
 
     return NextResponse.json(

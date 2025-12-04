@@ -13,7 +13,9 @@ export async function GET() {
       );
     }
 
-    const conversations = await conversationService.listConversations(auth.userId);
+    const conversations = await conversationService.listConversations(
+      auth.userId
+    );
 
     return NextResponse.json({
       success: true,

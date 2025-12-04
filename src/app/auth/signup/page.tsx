@@ -110,10 +110,10 @@ export default function SignUp() {
 
     const { firstName, lastName, email, password } = formData;
     const params: SignUpParams = {
-      name: firstName,
+      name: firstName.toLowerCase(),
       email: email,
       password: password,
-      family_name: lastName,
+      family_name: lastName.toLowerCase(),
     };
 
     try {
@@ -135,8 +135,8 @@ export default function SignUp() {
       style={authStyles.root}
     >
       {/* Right side - Sign up form */}
-      <div className="w-1/2 h-full px-16 py-12 right-[0px] top-0 absolute bg-gray-50 flex flex-col items-center overflow-y-auto gap-y-4">
-        <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] flex flex-col justify-start items-start gap-4">
+      <div className="w-1/2 h-full px-16 py-12 right-[0px] top-0 absolute bg-gray-50 flex flex-col items-center  justify-center overflow-y-auto gap-y-4">
+        <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] flex flex-col items-start gap-4">
           {/* Header */}
           <div className="w-full">
             <h1 className="text-sky-900 text-4xl font-bold font-['Bitter']">

@@ -36,8 +36,8 @@ export default function TestChatPage() {
     }
   };
 
-  const handleSelectConversation = (conv: any) => {
-    setSelectedConversation(conv);
+  const handleSelectConversation = (conv: unknown) => {
+    setSelectedConversation(conv as typeof chatData.conversations[0]);
     setShowProfile(false);
   };
 
@@ -79,8 +79,8 @@ export default function TestChatPage() {
 
       {/* Main Chat Area Component */}
       <MainChatArea
-        selectedConversation={selectedConversation}
-        messages={messages}
+        selectedConversation={selectedConversation as unknown as import("@/types/database").Conversation}
+        messages={messages as unknown as import("@/types/database").Message[]}
         messageInput={messageInput}
         onMessageInputChange={setMessageInput}
         onSendMessage={handleSendMessage}

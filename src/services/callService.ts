@@ -5,16 +5,16 @@ import {
   UpdateCommand,
   QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
-import type {
-  Call,
-  CallParticipant,
-  CreateCallInput,
+import {
+  type Call,
+  type CallParticipant,
+  type CreateCallInput,
   //CallType,
-  CallStatus,
+  type CallStatus,
+  TABLE_NAMES,
 } from "@/types/database";
 
-const TABLE_NAME =
-  process.env.DYNAMODB_CALLS_TABLE || "PantherKolab-CallSessions-dev";
+const TABLE_NAME = TABLE_NAMES.CALLS;
 
 export const callService = {
   /**

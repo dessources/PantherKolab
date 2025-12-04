@@ -9,7 +9,7 @@ function ResetPasswordContent() {
       style={authStyles.root}
     >
       {/* Right side - Reset password form */}
-      <div className="w-1/2 h-full px-16 py-12 right-0 top-0 absolute bg-gray-50 flex flex-col items-center overflow-y-auto gap-y-4">
+      <div className="w-1/2 justify-center h-full px-16 py-12 right-0 top-0 absolute bg-gray-50 flex flex-col items-center overflow-y-auto gap-y-4">
         <ResetPasswordForm />
         <div className="text-center text-zinc-600 text-sm font-bold font-['Bitter']">
           Powered by FIU Students, for FIU students

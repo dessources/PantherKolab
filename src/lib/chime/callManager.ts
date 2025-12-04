@@ -36,22 +36,12 @@ export const callManager = {
     initiatedBy: string;
     participantIds: string[];
     conversationId?: string;
-  }): Promise<Call> {
+  }): Promise<{ call: Call; meeting: Meeting; attendee: Attendee }> {
     // Validate input
     if (!data.callType || !data.initiatedBy || !data.participantIds?.length) {
       throw new Error(
         "Missing required fields: callType, initiatedBy, participantIds"
       );
-    }
-
-    // For DIRECT calls, should have exactly 2 participants
-    if (data.callType === "DIRECT" && data.participantIds.length !== 2) {
-      throw new Error("Direct calls must have exactly two participants");
-    }
-
-    // For GROUP calls, require conversationId
-    if (data.callType === "GROUP" && !data.conversationId) {
-      throw new Error("Group calls require a conversationId");
     }
 
     // Create call record in database
@@ -62,7 +52,50 @@ export const callManager = {
       conversationId: data.conversationId,
     });
 
-    return call;
+    // Create Chime meeting
+    const meeting = await chime.createMeeting({
+      ClientRequestToken: call.sessionId,
+      MediaRegion: process.env.AWS_CHIME_REGION || "us-east-1",
+      ExternalMeetingId: call.sessionId,
+    });
+
+    if (!meeting.Meeting?.MeetingId) {
+      throw new Error("Failed to create Chime meeting");
+    }
+
+    // Update call with Chime meeting ID
+    await callService.updateChimeMeetingId(
+      call.sessionId,
+      meeting.Meeting.MeetingId
+    );
+
+    // Create attendee for the caller
+    const clientId = generateClientId();
+    const attendeeResponse = await chime.createAttendee({
+      MeetingId: meeting.Meeting.MeetingId,
+      ExternalUserId: `${data.initiatedBy}#${clientId}`,
+    });
+
+    if (!attendeeResponse.Attendee) {
+      throw new Error("Failed to create Chime attendee for caller");
+    }
+
+    // Update caller's participant status
+    await callService.updateParticipantStatus(
+      call.sessionId,
+      data.initiatedBy,
+      "JOINED",
+      attendeeResponse.Attendee.AttendeeId
+    );
+
+    // Get updated call record
+    const updatedCall = await callService.getCall(call.sessionId);
+
+    return {
+      call: updatedCall!,
+      meeting: meeting.Meeting,
+      attendee: attendeeResponse.Attendee,
+    };
   },
 
   /**
@@ -71,26 +104,15 @@ export const callManager = {
    * Atomically: creates meeting, updates call record, creates attendees for all parties
    * Works for both DIRECT (2 participants) and GROUP (N participants) calls
    */
-  async acceptAndConnectCall(data: {
+  async acceptCall(data: {
     sessionId: string;
     recipientId: string;
-  }): Promise<{
-    call: Call;
-    meeting: Meeting;
-    attendees: Record<string, Attendee>;
-  }> {
+  }): Promise<{ call: Call; meeting: Meeting; attendee: Attendee }> {
     try {
       // 1. Get call record
       const call = await callService.getCall(data.sessionId);
-      if (!call) {
-        throw new Error("Call not found");
-      }
-
-      // Verify call is still in RINGING state
-      if (call.status !== "RINGING") {
-        throw new Error(
-          `Call is not in ringing state. Current status: ${call.status}`
-        );
+      if (!call || !call.chimeMeetingId) {
+        throw new Error("Call or meeting not found");
       }
 
       // Verify recipient is actually a participant
@@ -101,48 +123,38 @@ export const callManager = {
         throw new Error("User is not a participant in this call");
       }
 
-      // 2. Create Chime meeting
-      const meeting = await chime.createMeeting({
-        ClientRequestToken: data.sessionId, // Idempotency token
-        MediaRegion: process.env.AWS_CHIME_REGION || "us-east-1",
-        ExternalMeetingId: data.sessionId,
+      // 2. Create Chime attendee for the recipient
+      const clientId = generateClientId();
+      const attendeeResponse = await chime.createAttendee({
+        MeetingId: call.chimeMeetingId,
+        ExternalUserId: `${data.recipientId}#${clientId}`,
       });
 
-      if (!meeting.Meeting?.MeetingId) {
-        throw new Error("Failed to create Chime meeting");
+      if (!attendeeResponse.Attendee) {
+        throw new Error("Failed to create Chime attendee for recipient");
       }
-
-      // 3. Update call with Chime meeting ID
-      await callService.updateChimeMeetingId(
+      
+      // 3. Update recipient's participant status
+      await callService.updateParticipantStatus(
         data.sessionId,
-        meeting.Meeting.MeetingId
+        data.recipientId,
+        "JOINED",
+        attendeeResponse.Attendee.AttendeeId
       );
 
-      // 4. Create attendees for all participants (works for both direct and group calls)
-      const attendees: Record<string, Attendee> = {};
-
-      for (const participant of call.participants) {
-        const clientId = generateClientId();
-        const attendeeResponse = await chime.createAttendee({
-          MeetingId: meeting.Meeting.MeetingId,
-          ExternalUserId: `${participant.userId}#${clientId}`,
-        });
-
-        if (attendeeResponse.Attendee) {
-          attendees[participant.userId] = attendeeResponse.Attendee;
-
-          // Update participant status to JOINED
-          await callService.updateParticipantStatus(
-            data.sessionId,
-            participant.userId,
-            "JOINED",
-            attendeeResponse.Attendee.AttendeeId
-          );
-        }
+      // 4. If this is the first user to accept, update call status to ACTIVE
+      if (call.status === "RINGING") {
+        await callService.updateCallStatus(data.sessionId, "ACTIVE");
       }
 
-      // 5. Update call status to ACTIVE
-      await callService.updateCallStatus(data.sessionId, "ACTIVE");
+      // 5. Get Chime meeting details to return
+      const meeting = await chime.getMeeting({
+        MeetingId: call.chimeMeetingId,
+      });
+
+      if (!meeting.Meeting) {
+        throw new Error("Failed to get Chime meeting details");
+      }
 
       // 6. Get updated call record
       const updatedCall = await callService.getCall(data.sessionId);
@@ -150,13 +162,10 @@ export const callManager = {
       return {
         call: updatedCall!,
         meeting: meeting.Meeting,
-        attendees,
+        attendee: attendeeResponse.Attendee,
       };
     } catch (error) {
-      console.error("Error in acceptAndConnectCall:", error);
-
-      // Attempt cleanup if Chime meeting was created
-      // (Call record will remain in RINGING state for retry or manual cleanup)
+      console.error("Error in acceptCall:", error);
       throw error;
     }
   },

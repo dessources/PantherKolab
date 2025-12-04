@@ -26,32 +26,32 @@ interface MeetingViewDevProps {
 }
 
 // Mock participants for development
-const MOCK_PARTICIPANTS: Participant[] = [
-  {
-    id: "local-user",
-    name: "You",
-    isLocal: true,
-    isMuted: false,
-    hasVideo: true,
-    avatarColor: "#0066CC",
-  },
-  {
-    id: "user-2",
-    name: "Maria Garcia",
-    isLocal: false,
-    isMuted: false,
-    hasVideo: true,
-    avatarColor: "#B6862C",
-  },
-  {
-    id: "user-3",
-    name: "James Wilson",
-    isLocal: false,
-    isMuted: true,
-    hasVideo: false,
-    avatarColor: "#003366",
-  },
-];
+// const MOCK_PARTICIPANTS: Participant[] = [
+//   {
+//     id: "local-user",
+//     name: "You",
+//     isLocal: true,
+//     isMuted: false,
+//     hasVideo: true,
+//     avatarColor: "#0066CC",
+//   },
+//   {
+//     id: "user-2",
+//     name: "Maria Garcia",
+//     isLocal: false,
+//     isMuted: false,
+//     hasVideo: true,
+//     avatarColor: "#B6862C",
+//   },
+//   {
+//     id: "user-3",
+//     name: "James Wilson",
+//     isLocal: false,
+//     isMuted: true,
+//     hasVideo: false,
+//     avatarColor: "#003366",
+//   },
+// ];
 
 /**
  * MeetingViewDev - Development version of MeetingView
@@ -72,8 +72,7 @@ export function MeetingViewDev({
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isHandRaised, setIsHandRaised] = useState(false);
-  const [participants, setParticipants] =
-    useState<Participant[]>(MOCK_PARTICIPANTS);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [activeSpeakerId, setActiveSpeakerId] = useState<string>("user-2");
 
   // Modal states
@@ -239,7 +238,9 @@ export function MeetingViewDev({
       {/* Participants Grid */}
       <div className="flex-1 overflow-hidden p-4 sm:p-6">
         <div className="h-full max-w-7xl mx-auto flex items-center justify-center">
-          {/* Dynamic grid based on participant count */}
+          {/* 
+          Dynamic grid based on participant count 
+          */}
           {participants.length === 0 ? (
             /* Empty State */
             <div className="flex items-center justify-center py-20">
@@ -304,7 +305,7 @@ export function MeetingViewDev({
                           index % 2 === 0 ? "justify-end" : "justify-start"
                         } ${index < 2 ? "items-end" : "items-start"}`}
                       >
-                        <div className="h-full max-w-full aspect-video max-h-[calc(100% - 1/30vw)]">
+                        <div className="h-full flex max-w-full aspect-video ">
                           {renderParticipantTile(participant)}
                         </div>
                       </div>

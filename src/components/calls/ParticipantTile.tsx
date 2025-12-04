@@ -42,7 +42,7 @@ export function ParticipantTile({
 
   return (
     <div
-      className={`relative rounded-lg overflow-hidden bg-gradient-to-br from-[#003366] to-[#004080] aspect-video flex items-center justify-center transition-all ${
+      className={`relative rounded-lg overflow-hidden bg-gradient-to-br from-[#003366] to-[#004080] w-full h-full min-h-[200px] flex items-center justify-center transition-all ${
         isActiveSpeaker ? 'ring-4 ring-green-500' : ''
       }`}
     >

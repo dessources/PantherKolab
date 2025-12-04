@@ -3,6 +3,7 @@
  *
  * Type definitions for all real-time events
  */
+import { Attendee } from "@aws-sdk/client-chime-sdk-meetings";
 
 // ============================================================================
 // Message Events
@@ -96,10 +97,7 @@ export interface CallConnectedEvent {
       };
     };
     attendees: {
-      [userId: string]: {
-        AttendeeId: string;
-        JoinToken: string;
-      };
+      [userId: string]: Attendee;
     };
   };
 }
@@ -125,6 +123,15 @@ export interface ParticipantLeftEvent {
   data: {
     sessionId: string;
     userId: string;
+  };
+}
+
+export interface ParticipantJoinedEvent {
+  type: "PARTICIPANT_JOINED";
+  data: {
+    sessionId: string;
+    userId: string;
+    attendee: Attendee;
   };
 }
 
@@ -166,6 +173,7 @@ export type CallEvent =
   | CallEndedEvent
   | CallCancelledEvent
   | ParticipantLeftEvent
+  | ParticipantJoinedEvent
   | CallErrorEvent;
 
 export type AppSyncEventUnion = ChatEvent | CallEvent;
@@ -191,7 +199,8 @@ export type CallEventType =
   | "CALL_ENDED"
   | "CALL_CANCELLED"
   | "CALL_ERROR"
-  | "PARTICIPANT_LEFT";
+  | "PARTICIPANT_LEFT"
+  | "PARTICIPANT_JOINED";
 
 export type EventType = MessageEventType | TypingEventType | CallEventType;
 

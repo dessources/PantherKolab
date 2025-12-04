@@ -17,12 +17,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { subscribeToUserNotifications } from "@/lib/appSync/appsync-client";
 import type {
   IncomingCallEvent,
-  // CallRingingEvent,
   CallConnectedEvent,
   CallRejectedEvent,
   CallEndedEvent,
   CallCancelledEvent,
   ParticipantLeftEvent,
+  ParticipantJoinedEvent,
   CallErrorEvent,
   CallEvent,
 } from "@/types/appsync-events";
@@ -65,6 +65,11 @@ export interface UseCallsOptions {
     userId: string,
     newOwnerId?: string
   ) => void;
+  onParticipantJoined?: (
+    sessionId: string,
+    userId: string,
+    attendee: ParticipantJoinedEvent["data"]["attendee"]
+  ) => void;
   onError?: (error: string) => void;
 }
 
@@ -80,6 +85,7 @@ export function useCalls({
   onCallRejected,
   onCallCancelled,
   onParticipantLeft,
+  onParticipantJoined,
   onError,
 }: UseCallsOptions) {
   // Connection state
@@ -143,6 +149,22 @@ export function useCalls({
           break;
         }
 
+        case "PARTICIPANT_JOINED": {
+          const data = event.data as ParticipantJoinedEvent["data"];
+          setActiveCall((prev) => {
+            if (!prev || prev.sessionId !== data.sessionId) return prev;
+            return {
+              ...prev,
+              attendees: {
+                ...prev.attendees,
+                [data.userId]: data.attendee,
+              },
+            };
+          });
+          onParticipantJoined?.(data.sessionId, data.userId, data.attendee);
+          break;
+        }
+
         case "CALL_REJECTED": {
           const data = event.data as CallRejectedEvent["data"];
           setIsRinging(false);
@@ -199,6 +221,7 @@ export function useCalls({
       onCallRejected,
       onCallCancelled,
       onParticipantLeft,
+      onParticipantJoined,
       onError,
     ]
   );
@@ -218,7 +241,7 @@ export function useCalls({
           userId,
           (event) => {
             // Filter for call events only
-            const callEventTypes = [
+            const callEventTypes: CallEvent["type"][] = [
               "INCOMING_CALL",
               "CALL_RINGING",
               "CALL_CONNECTED",
@@ -226,10 +249,11 @@ export function useCalls({
               "CALL_ENDED",
               "CALL_CANCELLED",
               "PARTICIPANT_LEFT",
+              "PARTICIPANT_JOINED",
               "CALL_ERROR",
             ];
 
-            if (callEventTypes.includes(event.type)) {
+            if (callEventTypes.includes(event.type as CallEvent["type"])) {
               handleCallEvent(event as CallEvent);
             }
           },
@@ -269,7 +293,7 @@ export function useCalls({
       participantIds: string[];
       callType: CallType;
       conversationId?: string;
-    }): Promise<string> => {
+    }): Promise<void> => {
       try {
         setIsRinging(true);
         isCallInitiatorRef.current = true;
@@ -290,8 +314,8 @@ export function useCalls({
           throw new Error(data.error || "Failed to initiate call");
         }
 
-        const data = await response.json();
-        return data.call.sessionId;
+        // The CALL_CONNECTED event will be received via subscription
+        // which triggers the onCallConnected callback.
       } catch (err) {
         setIsRinging(false);
         isCallInitiatorRef.current = false;
@@ -304,43 +328,24 @@ export function useCalls({
   /**
    * Accept an incoming call
    */
-  const acceptCall = useCallback(
-    async (sessionId: string): Promise<MeetingData> => {
-      try {
-        const response = await fetch("/api/calls/accept", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        });
+  const acceptCall = useCallback(async (sessionId: string): Promise<void> => {
+    try {
+      const response = await fetch("/api/calls/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
 
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to accept call");
-        }
-
+      if (!response.ok) {
         const data = await response.json();
-
-        // Update local state (will also be updated via subscription)
-        setActiveCall({
-          sessionId,
-          callType: "DIRECT",
-          isOwner: false, // Acceptor is not the initial owner
-          meeting: data.meeting,
-          attendees: data.attendees,
-        });
-        setIncomingCall(null);
-
-        return {
-          sessionId,
-          meeting: data.meeting,
-          attendees: data.attendees,
-        };
-      } catch (err) {
-        throw err;
+        throw new Error(data.error || "Failed to accept call");
       }
-    },
-    []
-  );
+
+      // The CALL_CONNECTED event will be received via subscription
+    } catch (err) {
+      throw err;
+    }
+  }, []);
 
   /**
    * Reject an incoming call

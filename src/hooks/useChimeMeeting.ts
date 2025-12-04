@@ -6,6 +6,8 @@ import {
   LogLevel,
   MeetingSessionConfiguration,
   VideoTileState,
+  MeetingSessionStatus,
+  MeetingSessionStatusCode,
 } from "amazon-chime-sdk-js";
 import type { Meeting, Attendee } from "@aws-sdk/client-chime-sdk-meetings";
 
@@ -89,8 +91,18 @@ export function useChimeMeeting({
           console.log("Audio/Video started");
         },
 
-        audioVideoDidStop: () => {
-          console.log("Audio/Video stopped");
+        audioVideoDidStop: (sessionStatus: MeetingSessionStatus) => {
+          const sessionStatusCode = sessionStatus.statusCode();
+          if (sessionStatusCode === MeetingSessionStatusCode.MeetingEnded) {
+            // This is a normal meeting end. No need to show an error.
+            console.log("[ChimeMeeting] The meeting has ended normally.");
+            // The onCallEnded callback in useCalls will handle UI changes.
+          } else {
+            console.log(
+              "[ChimeMeeting] Audio/Video stopped with status:",
+              sessionStatus.statusCode()
+            );
+          }
         },
       };
 

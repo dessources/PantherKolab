@@ -165,9 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           userAttributes: {
             email: email,
-            name: name,
+            name: name.toLowerCase(),
             phone_number: "+10000000000",
             ...additionalAttributes,
+            family_name: additionalAttributes.family_name?.toLowerCase(),
           },
         },
       });
@@ -177,8 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // The DynamoDB profile will be created when the user logs in
         // This is secure because the API route uses the authenticated userId
         storePendingProfile({
-          firstName: name,
-          lastName: additionalAttributes.family_name || "",
+          firstName: name.toLowerCase(),
+          lastName: (additionalAttributes.family_name || "").toLowerCase(),
           email: email,
         });
       }

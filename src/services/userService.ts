@@ -21,9 +21,9 @@ export const userService = {
     const userProfile: UserProfile = {
       userId: userData.userId,
       email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      fullName: `${userData.firstName} ${userData.lastName}`.trim(),
+      firstName: userData.firstName.toLowerCase(),
+      lastName: userData.lastName.toLowerCase(),
+      fullName: `${userData.firstName.toLowerCase()} ${userData.lastName.toLowerCase()}`.trim(),
       emailVerified: false,
       profilePicture: null,
       major: 'Undeclared',
@@ -157,5 +157,30 @@ export const userService = {
   // Mark email as verified
   async verifyEmail(userId: string): Promise<UserProfile> {
     return this.updateUser(userId, { emailVerified: true })
+  },
+
+  // Search users by name (firstName, lastName, or fullName)
+  async searchUsersByName(searchTerm: string, limit = 10): Promise<UserProfile[]> {
+    const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
+
+    const lowerSearch = searchTerm.toLowerCase();
+
+    const params = {
+      TableName: TABLE_NAME,
+      FilterExpression:
+        'contains(#firstName, :search) OR contains(#lastName, :search) OR contains(#fullName, :search)',
+      ExpressionAttributeNames: {
+        '#firstName': 'firstName',
+        '#lastName': 'lastName',
+        '#fullName': 'fullName',
+      },
+      ExpressionAttributeValues: {
+        ':search': lowerSearch,
+      },
+      Limit: limit,
+    };
+
+    const result = await dynamoDb.send(new ScanCommand(params));
+    return (result.Items || []) as UserProfile[];
   },
 }

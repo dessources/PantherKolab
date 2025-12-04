@@ -5,8 +5,7 @@ import { publishToUsers } from "@/lib/appSync/appsync-server-client";
 
 /**
  * POST /api/calls/accept
- * Accept an incoming call and create Chime meeting
- * Works for both DIRECT and GROUP calls
+ * Accept an incoming call and join the Chime meeting
  */
 export async function POST(request: NextRequest) {
   try {
@@ -25,52 +24,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Accept the call and create Chime meeting
-    // This creates attendees for ALL participants (works for both direct and group calls)
-    const result = await callManager.acceptAndConnectCall({
+    // Accept the call and create a new attendee for the meeting
+    const { call, meeting, attendee } = await callManager.acceptCall({
       sessionId,
       recipientId: auth.userId,
     });
 
     // Verify the call was connected successfully
-    if (!result.meeting || !result.meeting.MeetingId) {
+    if (!meeting || !meeting.MeetingId) {
       return NextResponse.json(
-        { error: "Failed to create meeting" },
+        { error: "Failed to connect to meeting" },
         { status: 500 }
       );
     }
 
-    // Prepare connection data for all participants
-    const connectionData = {
-      sessionId,
-      meeting: {
-        MeetingId: result.meeting.MeetingId,
-        MediaPlacement: result.meeting.MediaPlacement,
-      },
-      attendees: result.attendees,
-    };
+    const allParticipantIds = call.participants.map((p) => p.userId);
+    const otherParticipantIds = allParticipantIds.filter(
+      (id) => id !== auth.userId
+    );
 
-    // Get all participant IDs from the call
-    const participantIds = result.call.participants.map((p) => p.userId);
-
-    // Notify all participants that the call is connected
+    // Notify the accepting user they are connected
     await publishToUsers(
-      participantIds,
+      [auth.userId],
       "/calls",
       {
         type: "CALL_CONNECTED",
-        data: connectionData,
+        data: {
+          sessionId,
+          meeting,
+          attendees: { [auth.userId]: attendee },
+        },
       },
       auth.idToken
     );
 
-    console.log(`[Calls] Call accepted and connected: ${sessionId}`);
+    // Notify other participants that this user has joined
+    await publishToUsers(
+      otherParticipantIds,
+      "/calls",
+      {
+        type: "PARTICIPANT_JOINED",
+        data: {
+          sessionId,
+          userId: auth.userId,
+          attendee,
+        },
+      },
+      auth.idToken
+    );
+
+    console.log(`[Calls] User ${auth.userId} accepted and joined call ${sessionId}`);
 
     return NextResponse.json({
       success: true,
       sessionId,
-      meeting: connectionData.meeting,
-      attendee: result.attendees[auth.userId],
+      meeting,
+      attendee,
     });
   } catch (error) {
     console.error("Error accepting call:", error);
@@ -79,7 +88,7 @@ export async function POST(request: NextRequest) {
       error instanceof Error ? error.message : "Failed to accept call";
 
     // Return specific error codes based on error type
-    if (errorMessage === "Call not found") {
+    if (errorMessage.includes("not found")) {
       return NextResponse.json({ error: errorMessage }, { status: 404 });
     }
 
@@ -87,7 +96,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errorMessage }, { status: 409 });
     }
 
-    if (errorMessage === "User is not a participant in this call") {
+    if (errorMessage.includes("not a participant")) {
       return NextResponse.json({ error: errorMessage }, { status: 403 });
     }
 

@@ -9,7 +9,7 @@ function ForgotPasswordContent() {
       style={authStyles.root}
     >
       {/* Right side - Forgot password form */}
-      <div className="w-1/2 h-full px-16 py-24 right-0 top-0 absolute bg-gray-50 inline-flex flex-col items-center overflow-hidden gap-y-4">
+      <div className="w-1/2 justify-center h-full px-16 py-24 right-0 top-0 absolute bg-gray-50 inline-flex flex-col items-center overflow-hidden gap-y-4">
         <ForgotPasswordForm />
         <div className="text-center text-zinc-600 text-sm font-bold font-['Bitter']">
           Powered by FIU Students, for FIU students

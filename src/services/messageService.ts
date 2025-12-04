@@ -1,6 +1,6 @@
 import { dynamoDb } from "@/lib/dynamodb";
 import { PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import type { Message } from "@/types/database";
+import { TABLE_NAMES, type Message } from "@/types/database";
 
 interface CreateMessageInput {
   conversationId: string;
@@ -15,7 +15,6 @@ interface CreateMessageInput {
 
 export const messageService = {
   async sendMessage(input: CreateMessageInput): Promise<Message> {
-
     // 1. Create message object
     const message: Message = {
       conversationId: input.conversationId,
@@ -38,7 +37,7 @@ export const messageService = {
     // Save to DynamoDB
     await dynamoDb.send(
       new PutCommand({
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
+        TableName: TABLE_NAMES.MESSAGES,
         Item: message,
       })
     );
@@ -50,7 +49,7 @@ export const messageService = {
   async getMessages(conversationId: string, limit = 50): Promise<Message[]> {
     const result = await dynamoDb.send(
       new QueryCommand({
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
+        TableName: TABLE_NAMES.MESSAGES,
         KeyConditionExpression: "conversationId = :convId",
         ExpressionAttributeValues: {
           ":convId": conversationId,
@@ -70,7 +69,7 @@ export const messageService = {
     // Soft delete
     await dynamoDb.send(
       new UpdateCommand({
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
+        TableName: TABLE_NAMES.MESSAGES,
         Key: { conversationId, timestamp: messageId },
         UpdateExpression: "SET deleted = :true",
         ExpressionAttributeValues: {
@@ -90,7 +89,7 @@ export const messageService = {
     // Get current message first
     const result = await dynamoDb.send(
       new QueryCommand({
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
+        TableName: TABLE_NAMES.MESSAGES,
         KeyConditionExpression: "conversationId = :convId AND #ts = :msgId",
         ExpressionAttributeNames: {
           "#ts": "timestamp",
@@ -114,7 +113,7 @@ export const messageService = {
     // Update message
     await dynamoDb.send(
       new UpdateCommand({
-        TableName: process.env.DYNAMODB_MESSAGES_TABLE,
+        TableName: TABLE_NAMES.MESSAGES,
         Key: { conversationId, timestamp: messageId },
         UpdateExpression: "SET readBy = :readBy",
         ExpressionAttributeValues: {
