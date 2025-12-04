@@ -339,13 +339,17 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                       >
                         {(() => {
                           // Get sender's name from participantNames map
-                          const senderName = participantNames?.[message.senderId];
+                          const senderName =
+                            participantNames?.[message.senderId];
                           if (senderName) {
                             // Extract initials from name (e.g., "John Doe" -> "JD")
-                            const names = senderName.split(' ');
-                            const initials = names.length >= 2
-                              ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-                              : senderName.substring(0, 2).toUpperCase();
+                            const names = senderName.split(" ");
+                            const initials =
+                              names.length >= 2
+                                ? `${names[0][0]}${
+                                    names[names.length - 1][0]
+                                  }`.toUpperCase()
+                                : senderName.substring(0, 2).toUpperCase();
                             return initials;
                           }
                           // Fallback to first 2 characters of senderId
