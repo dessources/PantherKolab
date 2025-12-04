@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kolab Dashboard - FIU Student Platform</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        /* FIU Brand Colors */
+        --fiu-navy: #003366;
+        --fiu-blue: #0066cc;
+        --fiu-light-blue: #4a90e2;
+        --fiu-gold: #ffb500;
+        --fiu-gold-light: #ffc733;
+
+        /* Neutral Colors */
+        --white: #ffffff;
+        --light-gray: #f8f9fa;
+        --medium-gray: #e9ecef;
+        --dark-gray: #495057;
+        --text-dark: #212529;
+        --text-secondary: #6c757d;
+
+        /* Accent Colors */
+        --success: #28a745;
+        --danger: #dc3545;
+        --warning: #ffc107;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--light-gray);
+        color: var(--text-dark);
+        line-height: 1.6;
+      }
+
+      /* Top Navigation */
+      .top-nav {
+        background: var(--fiu-navy);
+        color: var(--white);
+        padding: 1rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .logo-icon {
+        background: var(--fiu-gold);
+        color: var(--fiu-navy);
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+      }
+
+      .search-bar {
+        flex: 1;
+        max-width: 500px;
+        margin: 0 2rem;
+      }
+
+      .search-bar input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: rgba(255, 255, 255, 0.15);
+        color: var(--white);
+      }
+
+      .search-bar input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .search-bar input:focus {
+        outline: 2px solid var(--fiu-gold);
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .btn {
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary {
+        background: var(--fiu-gold);
+        color: var(--fiu-navy);
+      }
+
+      .btn-primary:hover {
+        background: var(--fiu-gold-light);
+        transform: translateY(-1px);
+      }
+
+      .icon-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--white);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .icon-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .notification-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: var(--danger);
+        color: white;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+
+      /* Main Layout */
+      .dashboard-container {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        gap: 1.5rem;
+        padding: 1.5rem 2rem;
+        max-width: 1800px;
+        margin: 0 auto;
+        min-height: calc(100vh - 80px);
+      }
+
+      /* Left Sidebar */
+      .sidebar {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        height: fit-content;
+        position: sticky;
+        top: 100px;
+      }
+
+      .sidebar h3 {
+        color: var(--fiu-navy);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        font-weight: 700;
+      }
+
+      .nav-item {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .nav-item:hover {
+        background: rgba(255, 181, 0, 0.1);
+      }
+
+      .nav-item.active {
+        background: rgba(0, 102, 204, 0.1);
+        color: var(--fiu-blue);
+        font-weight: 600;
+      }
+
+      .nav-item-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .course-badge {
+        background: var(--fiu-gold);
+        color: var(--fiu-navy);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+
+      .unread-count {
+        background: var(--fiu-blue);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+
+      .create-group-btn {
+        width: 100%;
+        margin-top: 1rem;
+        background: var(--fiu-gold);
+        color: var(--fiu-navy);
+      }
+
+      /* Center Feed */
+      .main-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .welcome-section {
+        background: linear-gradient(135deg, var(--fiu-navy), var(--fiu-blue));
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .welcome-section h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .welcome-section p {
+        opacity: 0.9;
+        font-size: 1rem;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+
+      .section-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--fiu-navy);
+      }
+
+      .view-all {
+        color: var(--fiu-blue);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .view-all:hover {
+        text-decoration: underline;
+      }
+
+      /* Course Cards */
+      .course-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+      }
+
+      .course-card {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid var(--fiu-blue);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .course-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      }
+
+      .course-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+      }
+
+      .course-code {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--fiu-blue);
+        background: rgba(0, 102, 204, 0.1);
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+
+      .course-name {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-dark);
+      }
+
+      .course-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+      }
+
+      .course-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .btn-small {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+      }
+
+      /* AI Summary Cards */
+      .summary-card {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid var(--fiu-gold);
+        margin-bottom: 1rem;
+      }
+
+      .summary-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      .ai-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .summary-content {
+        color: var(--text-dark);
+        line-height: 1.6;
+        margin-bottom: 1rem;
+      }
+
+      .summary-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      /* Suggested Groups */
+      .suggestion-card {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+      }
+
+      .suggestion-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      }
+
+      .suggestion-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        background: linear-gradient(
+          135deg,
+          var(--fiu-blue),
+          var(--fiu-light-blue)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+      }
+
+      .suggestion-content {
+        flex: 1;
+      }
+
+      .suggestion-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--text-dark);
+      }
+
+      .suggestion-meta {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+
+      /* Right Sidebar */
+      .right-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .widget {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+
+      .widget h3 {
+        color: var(--fiu-navy);
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        font-weight: 700;
+      }
+
+      .schedule-item {
+        padding: 1rem;
+        background: var(--light-gray);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid var(--fiu-blue);
+      }
+
+      .schedule-time {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--fiu-blue);
+        margin-bottom: 0.25rem;
+      }
+
+      .schedule-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+
+      .schedule-location {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+
+      .deadline-item {
+        padding: 1rem;
+        background: var(--light-gray);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .deadline-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        background: var(--fiu-gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--fiu-navy);
+        font-weight: 700;
+      }
+
+      .deadline-content {
+        flex: 1;
+      }
+
+      .deadline-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+      }
+
+      .deadline-time {
+        font-size: 0.8rem;
+        color: var(--danger);
+        font-weight: 600;
+      }
+
+      .active-sessions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .session-item {
+        padding: 1rem;
+        background: rgba(0, 102, 204, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(0, 102, 204, 0.2);
+      }
+
+      .session-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+
+      .session-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .live-badge {
+        background: var(--success);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .pulse {
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .session-participants {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+      }
+
+      .btn-join {
+        width: 100%;
+        background: var(--fiu-blue);
+        color: white;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 1200px) {
+        .dashboard-container {
+          grid-template-columns: 250px 1fr;
+        }
+
+        .right-sidebar {
+          display: none;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .dashboard-container {
+          grid-template-columns: 1fr;
+          padding: 1rem;
+        }
+
+        .sidebar {
+          position: static;
+        }
+
+        .search-bar {
+          display: none;
+        }
+
+        .top-nav {
+          padding: 1rem;
+        }
+
+        .course-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="logo">
+        <div class="logo-icon">K</div>
+        <span>KOLAB</span>
+      </div>
+
+      <div class="search-bar">
+        <input type="text" placeholder="Search messages, people, courses..." />
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn btn-primary">+ New</button>
+        <div class="icon-btn">
+          🔔
+          <span class="notification-badge">3</span>
+        </div>
+        <div class="icon-btn">👤</div>
+      </div>
+    </nav>
+
+    <!-- Main Dashboard -->
+    <div class="dashboard-container">
+      <!-- Left Sidebar -->
+      <aside class="sidebar">
+        <h3>Your Groups</h3>
+        <div class="nav-item active">
+          <div class="nav-item-content">
+            <span>📚</span>
+            <div>
+              <div style="font-weight: 600">Data Structures</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                COP 3530
+              </div>
+            </div>
+          </div>
+          <span class="unread-count">5</span>
+        </div>
+
+        <div class="nav-item">
+          <div class="nav-item-content">
+            <span>🎨</span>
+            <div>
+              <div style="font-weight: 600">Web Development</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                COP 4813
+              </div>
+            </div>
+          </div>
+          <span class="unread-count">12</span>
+        </div>
+
+        <div class="nav-item">
+          <div class="nav-item-content">
+            <span>💻</span>
+            <div>
+              <div style="font-weight: 600">Operating Systems</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                COP 4610
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 2rem">Direct Messages</h3>
+        <div class="nav-item">
+          <div class="nav-item-content">
+            <span>👤</span>
+            <span>Ousman Bah</span>
+          </div>
+          <span class="unread-count">2</span>
+        </div>
+
+        <div class="nav-item">
+          <div class="nav-item-content">
+            <span>👤</span>
+            <span>Antoine</span>
+          </div>
+        </div>
+
+        <button class="btn create-group-btn">+ Create Group</button>
+      </aside>
+
+      <!-- Main Feed -->
+      <main class="main-feed">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+          <h1>Good morning, Jonas! 👋</h1>
+          <p>You have 3 meetings today and 17 unread messages.</p>
+        </div>
+
+        <!-- Active Groups -->
+        <section>
+          <div class="section-header">
+            <h2 class="section-title">Your Active Groups</h2>
+            <a href="#" class="view-all">View All →</a>
+          </div>
+
+          <div class="course-grid">
+            <div class="course-card">
+              <div class="course-header">
+                <span class="course-code">COP 3530</span>
+                <span class="unread-count">5</span>
+              </div>
+              <h3 class="course-name">Data Structures & Algorithms</h3>
+              <div class="course-meta">
+                <span>📅 Study Session in 2h</span>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-primary btn-small">View Messages</button>
+                <button
+                  class="btn btn-small"
+                  style="background: var(--fiu-blue); color: white"
+                >
+                  Join Whiteboard
+                </button>
+              </div>
+            </div>
+
+            <div class="course-card" style="border-left-color: var(--fiu-gold)">
+              <div class="course-header">
+                <span
+                  class="course-code"
+                  style="
+                    background: rgba(255, 181, 0, 0.1);
+                    color: var(--fiu-navy);
+                  "
+                  >COP 4813</span
+                >
+                <span class="unread-count">12</span>
+              </div>
+              <h3 class="course-name">Advanced Web Development</h3>
+              <div class="course-meta">
+                <span>👥 8 students active now</span>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-primary btn-small">View Messages</button>
+              </div>
+            </div>
+
+            <div class="course-card" style="border-left-color: var(--success)">
+              <div class="course-header">
+                <span
+                  class="course-code"
+                  style="
+                    background: rgba(40, 167, 69, 0.1);
+                    color: var(--success);
+                  "
+                  >COP 4610</span
+                >
+              </div>
+              <h3 class="course-name">Operating Systems</h3>
+              <div class="course-meta">
+                <span>📝 Assignment due in 3 days</span>
+              </div>
+              <div class="course-actions">
+                <button class="btn btn-primary btn-small">View Messages</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Summaries -->
+        <section>
+          <div class="section-header">
+            <h2 class="section-title">Missed Conversations</h2>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-header">
+              <span style="font-size: 1.5rem">💬</span>
+              <div style="flex: 1">
+                <div style="font-weight: 600; margin-bottom: 0.25rem">
+                  Mobile Dev Group
+                </div>
+                <div class="ai-badge">✨ AI Summary</div>
+              </div>
+            </div>
+            <div class="summary-content">
+              Team discussed React Native setup and decided to use Expo for the
+              project. Maria shared tutorial links and setup instructions.
+              Antoine encountered an iOS simulator issue which Michael helped
+              resolve. Next meeting scheduled for Thursday 3pm.
+            </div>
+            <div class="summary-actions">
+              <button class="btn btn-primary btn-small">View Full Chat</button>
+              <button
+                class="btn btn-small"
+                style="background: var(--medium-gray)"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-header">
+              <span style="font-size: 1.5rem">📚</span>
+              <div style="flex: 1">
+                <div style="font-weight: 600; margin-bottom: 0.25rem">
+                  COP 3530 Study Group
+                </div>
+                <div class="ai-badge">✨ AI Summary</div>
+              </div>
+            </div>
+            <div class="summary-content">
+              Group worked through Binary Search Tree problems. Key topics:
+              insertion, deletion, and traversal algorithms. Michael shared
+              helpful visualizations. Practice problems assigned for next
+              session.
+            </div>
+            <div class="summary-actions">
+              <button class="btn btn-primary btn-small">View Full Chat</button>
+              <button
+                class="btn btn-small"
+                style="background: var(--medium-gray)"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Suggested Groups -->
+        <section>
+          <div class="section-header">
+            <h2 class="section-title">Suggested For You</h2>
+          </div>
+
+          <div class="suggestion-card">
+            <div class="suggestion-icon">🎯</div>
+            <div class="suggestion-content">
+              <div class="suggestion-title">Database Systems Study Group</div>
+              <div class="suggestion-meta">
+                12 FIU students • Based on your schedule
+              </div>
+            </div>
+            <button class="btn btn-primary btn-small">Join Group</button>
+          </div>
+
+          <div class="suggestion-card">
+            <div
+              class="suggestion-icon"
+              style="
+                background: linear-gradient(
+                  135deg,
+                  var(--fiu-gold),
+                  var(--fiu-gold-light)
+                );
+              "
+            >
+              📊
+            </div>
+            <div class="suggestion-content">
+              <div class="suggestion-title">INIT Build Program Team</div>
+              <div class="suggestion-meta">
+                5 members • Project collaboration
+              </div>
+            </div>
+            <button class="btn btn-primary btn-small">Join Group</button>
+          </div>
+        </section>
+      </main>
+
+      <!-- Right Sidebar -->
+      <aside class="right-sidebar">
+        <!-- Today's Schedule -->
+        <div class="widget">
+          <h3>📅 Today's Schedule</h3>
+
+          <div class="schedule-item">
+            <div class="schedule-time">9:00 AM - 10:15 AM</div>
+            <div class="schedule-title">COP 3530 Lecture</div>
+            <div class="schedule-location">PG6 Building, Room 120</div>
+          </div>
+
+          <div class="schedule-item" style="border-left-color: var(--fiu-gold)">
+            <div class="schedule-time" style="color: var(--fiu-gold)">
+              2:00 PM - 4:00 PM
+            </div>
+            <div class="schedule-title">Study Session with Ousman</div>
+            <div class="schedule-location">Library, 3rd Floor</div>
+          </div>
+
+          <div class="schedule-item" style="border-left-color: var(--success)">
+            <div class="schedule-time" style="color: var(--success)">
+              6:00 PM - 7:00 PM
+            </div>
+            <div class="schedule-title">INIT Build Standup</div>
+            <div class="schedule-location">Virtual Meeting</div>
+          </div>
+        </div>
+
+        <!-- Upcoming Deadlines -->
+        <div class="widget">
+          <h3>⏰ Due Soon</h3>
+
+          <div class="deadline-item">
+            <div class="deadline-icon">
+              <div style="font-size: 0.8rem">NOV</div>
+              <div style="font-size: 1.2rem; line-height: 1">30</div>
+            </div>
+            <div class="deadline-content">
+              <div class="deadline-title">Project Proposal</div>
+              <div class="deadline-time">Due in 3 days</div>
+            </div>
+          </div>
+
+          <div class="deadline-item">
+            <div class="deadline-icon">
+              <div style="font-size: 0.8rem">DEC</div>
+              <div style="font-size: 1.2rem; line-height: 1">2</div>
+            </div>
+            <div class="deadline-content">
+              <div class="deadline-title">BST Assignment</div>
+              <div class="deadline-time">Due in 5 days</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Study Sessions -->
+        <div class="widget">
+          <h3>🔴 Active Sessions</h3>
+
+          <div class="active-sessions">
+            <div class="session-item">
+              <div class="session-header">
+                <div class="session-title">Web Dev Office Hours</div>
+                <div class="live-badge">
+                  <div class="pulse"></div>
+                  LIVE
+                </div>
+              </div>
+              <div class="session-participants">8 students active</div>
+              <button class="btn btn-join btn-small">Join Now</button>
+            </div>
+
+            <div class="session-item">
+              <div class="session-header">
+                <div class="session-title">Algorithms Study Group</div>
+                <div class="live-badge">
+                  <div class="pulse"></div>
+                  LIVE
+                </div>
+              </div>
+              <div class="session-participants">5 students active</div>
+              <button class="btn btn-join btn-small">Join Now</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div
+          class="widget"
+          style="
+            background: linear-gradient(
+              135deg,
+              rgba(0, 51, 102, 0.05),
+              rgba(0, 102, 204, 0.05)
+            );
+          "
+        >
+          <h3>📊 Your Activity</h3>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 1rem;
+              margin-top: 1rem;
+            "
+          >
+            <div style="text-align: center">
+              <div
+                style="
+                  font-size: 2rem;
+                  font-weight: 700;
+                  color: var(--fiu-blue);
+                "
+              >
+                17
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                Unread Messages
+              </div>
+            </div>
+            <div style="text-align: center">
+              <div
+                style="
+                  font-size: 2rem;
+                  font-weight: 700;
+                  color: var(--fiu-gold);
+                "
+              >
+                5
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                Active Groups
+              </div>
+            </div>
+            <div style="text-align: center">
+              <div
+                style="font-size: 2rem; font-weight: 700; color: var(--success)"
+              >
+                3
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                Study Sessions
+              </div>
+            </div>
+            <div style="text-align: center">
+              <div
+                style="
+                  font-size: 2rem;
+                  font-weight: 700;
+                  color: var(--fiu-navy);
+                "
+              >
+                12
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary)">
+                Collaborations
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      // Simple interactivity
+      document.querySelectorAll(".nav-item").forEach((item) => {
+        item.addEventListener("click", function () {
+          document
+            .querySelectorAll(".nav-item")
+            .forEach((i) => i.classList.remove("active"));
+          this.classList.add("active");
+        });
+      });
+
+      // Course card click
+      document.querySelectorAll(".course-card").forEach((card) => {
+        card.addEventListener("click", function (e) {
+          if (!e.target.classList.contains("btn")) {
+            console.log("Navigate to course detail");
+          }
+        });
+      });
+
+      // Button interactions
+      document.querySelectorAll(".btn").forEach((btn) => {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          console.log("Button clicked:", this.textContent);
+        });
+      });
+    </script>
+  </body>
+</html>
