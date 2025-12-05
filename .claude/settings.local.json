@@ -4,7 +4,8 @@
       "Bash(mkdir:*)",
       "Bash(cat:*)",
       "Bash(npm run dev:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(aws dynamodb create-table:*)"
     ],
     "deny": [],
     "ask": []

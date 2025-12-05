@@ -151,6 +151,8 @@ export const TABLE_NAMES = {
   MESSAGES: process.env.DYNAMODB_MESSAGES_TABLE || "PantherKolab-Messages-dev",
   GROUPS: process.env.DYNAMODB_GROUPS_TABLE || "PantherKolab-Groups-dev",
   CALLS: process.env.DYNAMODB_CALLS_TABLE || "PantherKolab-CallSessions-dev",
+  WHITEBOARDS:
+    process.env.DYNAMODB_WHITEBOARDS_TABLE || "PantherKolab-Whiteboards-dev",
 } as const;
 
 /**
@@ -166,6 +168,9 @@ export const INDEX_NAMES = {
   },
   GROUPS: {
     CLASS_CODE: "ClassCodeIndex",
+  },
+  WHITEBOARDS: {
+    CONVERSATION_ID: "ConversationIdIndex",
   },
 } as const;
 
@@ -240,4 +245,31 @@ export interface IncomingCallData {
   callerName: string;
   callType: CallType;
   conversationId?: string | null;
+}
+
+/**
+ * Whiteboard
+ * Table: PantherKolab-Whiteboards-{env}
+ * Primary Key: whiteboardId
+ * GSI: ConversationIdIndex (conversationId)
+ */
+export interface Whiteboard {
+  whiteboardId: string; // UUID - Partition key
+  conversationId: string; // Associated conversation (indexed via GSI)
+  name: string; // Whiteboard name
+  createdBy: string; // Creator userId
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+  snapshot: string | null; // tldraw snapshot JSON (serialized state)
+  isActive: boolean; // Is whiteboard currently active
+  participants: string[]; // Array of userIds currently viewing/editing
+}
+
+/**
+ * Create Whiteboard Input
+ */
+export interface CreateWhiteboardInput {
+  conversationId: string;
+  name: string;
+  createdBy: string;
 }

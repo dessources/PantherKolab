@@ -152,6 +152,65 @@ export interface CallCancelledEvent {
 }
 
 // ============================================================================
+// Whiteboard Events
+// ============================================================================
+
+export interface WhiteboardCreatedEvent {
+  type: "WHITEBOARD_CREATED";
+  data: {
+    whiteboardId: string;
+    conversationId: string;
+    name: string;
+    createdBy: string;
+  };
+}
+
+export interface WhiteboardUpdatedEvent {
+  type: "WHITEBOARD_UPDATED";
+  data: {
+    whiteboardId: string;
+    snapshot: string; // tldraw snapshot JSON
+    updatedBy: string;
+  };
+}
+
+export interface WhiteboardDeletedEvent {
+  type: "WHITEBOARD_DELETED";
+  data: {
+    whiteboardId: string;
+    deletedBy: string;
+  };
+}
+
+export interface WhiteboardParticipantJoinedEvent {
+  type: "WHITEBOARD_PARTICIPANT_JOINED";
+  data: {
+    whiteboardId: string;
+    userId: string;
+    userName: string;
+  };
+}
+
+export interface WhiteboardParticipantLeftEvent {
+  type: "WHITEBOARD_PARTICIPANT_LEFT";
+  data: {
+    whiteboardId: string;
+    userId: string;
+  };
+}
+
+export interface WhiteboardCursorMovedEvent {
+  type: "WHITEBOARD_CURSOR_MOVED";
+  data: {
+    whiteboardId: string;
+    userId: string;
+    userName: string;
+    x: number;
+    y: number;
+  };
+}
+
+// ============================================================================
 // Union Types
 // ============================================================================
 
@@ -176,7 +235,15 @@ export type CallEvent =
   | ParticipantJoinedEvent
   | CallErrorEvent;
 
-export type AppSyncEventUnion = ChatEvent | CallEvent;
+export type WhiteboardEvent =
+  | WhiteboardCreatedEvent
+  | WhiteboardUpdatedEvent
+  | WhiteboardDeletedEvent
+  | WhiteboardParticipantJoinedEvent
+  | WhiteboardParticipantLeftEvent
+  | WhiteboardCursorMovedEvent;
+
+export type AppSyncEventUnion = ChatEvent | CallEvent | WhiteboardEvent;
 
 // ============================================================================
 // Generic Event Type
@@ -202,7 +269,19 @@ export type CallEventType =
   | "PARTICIPANT_LEFT"
   | "PARTICIPANT_JOINED";
 
-export type EventType = MessageEventType | TypingEventType | CallEventType;
+export type WhiteboardEventType =
+  | "WHITEBOARD_CREATED"
+  | "WHITEBOARD_UPDATED"
+  | "WHITEBOARD_DELETED"
+  | "WHITEBOARD_PARTICIPANT_JOINED"
+  | "WHITEBOARD_PARTICIPANT_LEFT"
+  | "WHITEBOARD_CURSOR_MOVED";
+
+export type EventType =
+  | MessageEventType
+  | TypingEventType
+  | CallEventType
+  | WhiteboardEventType;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface AppSyncEvent<T = Record<string, any>> {
