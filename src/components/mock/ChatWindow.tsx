@@ -7,11 +7,11 @@
  * Combines MessageList and MessageInput into a complete chat interface
  */
 
-'use client';
+"use client";
 
-import { MessageList, type MockMessage } from './MessageList';
-import { MessageInput } from './MessageInput';
-import { SummaryButton } from '@/components/SummaryButton';
+import { MessageList, type MockMessage } from "./MessageList";
+import { MessageInput } from "./MessageInput";
+import { SummaryButton } from "@/components/SummaryButton";
 
 interface ChatWindowProps {
   conversationId: string | null;
@@ -45,9 +45,9 @@ export function ChatWindow({
   }
 
   const initials = conversationName
-    .split(' ')
-    .map(word => word[0])
-    .join('')
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
     .toUpperCase()
     .substring(0, 3);
 
@@ -61,7 +61,9 @@ export function ChatWindow({
               {initials}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{conversationName}</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                {conversationName}
+              </h2>
               <p className="text-xs text-gray-600">{memberCount} members</p>
             </div>
           </div>
@@ -140,14 +142,19 @@ export function ChatWindow({
       )}
 
       {/* AI Summary Button */}
-      <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
-        <SummaryButton
-          conversationId={conversationId}
-          onSummaryGenerated={(summary) => {
-            console.log('AI Summary generated:', summary);
-          }}
-        />
-      </div>
+      {
+        // Don't render anything if there are 20 or fewer messages
+        messages.length >= 20 && (
+          <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
+            <SummaryButton
+              conversationId={conversationId}
+              onSummaryGenerated={(summary) => {
+                console.log("AI Summary generated:", summary);
+              }}
+            />
+          </div>
+        )
+      }
 
       {/* Messages */}
       <MessageList messages={messages} currentUserId={currentUserId} />

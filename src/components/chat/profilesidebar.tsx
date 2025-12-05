@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Phone, MoreVertical } from "lucide-react";
+import { MessageSquare, Phone, MoreVertical, X } from "lucide-react";
 import Image from "next/image";
 
 interface ProfileData {
@@ -19,6 +19,7 @@ interface ProfileSidebarProps {
   isVisible: boolean;
   onMessageClick?: () => void;
   onCallClick?: (recipientId: string) => void; // New prop for initiating calls
+  onClose?: () => void; // New prop for closing the sidebar
 }
 
 export default function ProfileSidebar({
@@ -26,6 +27,7 @@ export default function ProfileSidebar({
   isVisible,
   onMessageClick,
   onCallClick,
+  onClose,
 }: ProfileSidebarProps) {
   const hasData = profileData !== null;
 
@@ -87,26 +89,38 @@ export default function ProfileSidebar({
       <div className="w-96 h-full flex flex-col overflow-y-auto">
         {profileData && (
           <>
-            {/* Cover Photo */}
-            <div className="relative h-90">
-              <Image
-                src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600"
-                className="w-full h-full object-cover"
-                alt="Cover"
-                width={383}
-                height={356}
-                priority
-              />
+            {/* Header with Close Button */}
+            <div className="relative">
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white rounded-full cursor-pointer transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-700" />
+                </button>
+              )}
 
-              {/* Name + Status INSIDE the cover, Sigma style */}
-              <div className="absolute bottom-4 left-6 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
-                <h2 className="text-2xl font-bold capitalize">
-                  {profileData.name}
-                </h2>
+              {/* Cover Photo */}
+              <div className="relative h-90">
+                <Image
+                  src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600"
+                  className="w-full h-full object-cover"
+                  alt="Cover"
+                  width={383}
+                  height={356}
+                  priority
+                />
 
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-semibold">Online</span>
+                {/* Name + Status INSIDE the cover, Sigma style */}
+                <div className="absolute bottom-4 left-6 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
+                  <h2 className="text-2xl font-bold capitalize">
+                    {profileData.name}
+                  </h2>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-semibold">Online</span>
+                  </div>
                 </div>
               </div>
             </div>

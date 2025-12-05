@@ -88,6 +88,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (errorMessage.includes('Insufficient messages')) {
+      return NextResponse.json(
+        { success: false, error: errorMessage },
+        { status: 400 }
+      )
+    }
+
     if (errorMessage.includes('Failed to generate summary with AI')) {
       return NextResponse.json(
         { success: false, error: 'AI service is currently unavailable. Please try again later.' },

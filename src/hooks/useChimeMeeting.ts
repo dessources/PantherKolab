@@ -63,7 +63,8 @@ export function useChimeMeeting({
       const audioVideoObserver = {
         videoTileDidUpdate: (tileState: VideoTileState) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          process.env.NODE_ENV !== "production" && console.log("Video tile updated:", tileState);
+          process.env.NODE_ENV !== "production" &&
+            console.log("Video tile updated:", tileState);
           if (!tileState.boundAttendeeId) {
             return;
           }
@@ -82,7 +83,8 @@ export function useChimeMeeting({
 
         videoTileWasRemoved: (tileId: number) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          process.env.NODE_ENV !== "production" && console.log("Video tile removed:", tileId);
+          process.env.NODE_ENV !== "production" &&
+            console.log("Video tile removed:", tileId);
           setVideoTiles((prevTiles) => {
             const newTiles = new Map(prevTiles);
             newTiles.delete(tileId);
@@ -92,7 +94,8 @@ export function useChimeMeeting({
 
         audioVideoDidStart: () => {
           // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-          process.env.NODE_ENV !== "production" && console.log("Audio/Video started");
+          process.env.NODE_ENV !== "production" &&
+            console.log("Audio/Video started");
         },
 
         audioVideoDidStop: (sessionStatus: MeetingSessionStatus) => {
@@ -100,14 +103,16 @@ export function useChimeMeeting({
           if (sessionStatusCode === MeetingSessionStatusCode.MeetingEnded) {
             // This is a normal meeting end. No need to show an error.
             // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            process.env.NODE_ENV !== "production" && console.log("[ChimeMeeting] The meeting has ended normally.");
+            process.env.NODE_ENV !== "production" &&
+              console.log("[ChimeMeeting] The meeting has ended normally.");
             // The onCallEnded callback in useCalls will handle UI changes.
           } else {
             // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-            process.env.NODE_ENV !== "production" && console.log(
-              "[ChimeMeeting] Audio/Video stopped with status:",
-              sessionStatus.statusCode()
-            );
+            process.env.NODE_ENV !== "production" &&
+              console.log(
+                "[ChimeMeeting] Audio/Video stopped with status:",
+                sessionStatus.statusCode()
+              );
           }
         },
       };
@@ -128,7 +133,8 @@ export function useChimeMeeting({
 
       setIsInitialized(true);
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log("✅ Chime meeting session initialized");
+      process.env.NODE_ENV !== "production" &&
+        console.log("✅ Chime meeting session initialized");
     } catch (error) {
       console.error("Error initializing Chime meeting:", error);
       onError?.(error as Error);
@@ -155,7 +161,8 @@ export function useChimeMeeting({
     // Guard: Prevent starting multiple times
     if (hasStartedAudioVideoRef.current) {
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log("Audio/video already started, skipping");
+      process.env.NODE_ENV !== "production" &&
+        console.log("Audio/video already started, skipping");
       return;
     }
 
@@ -196,7 +203,8 @@ export function useChimeMeeting({
       setIsVideoEnabled(true);
 
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log("✅ Audio and video started");
+      process.env.NODE_ENV !== "production" &&
+        console.log("✅ Audio and video started");
     } catch (error) {
       console.error("Error starting audio/video:", error);
       hasStartedAudioVideoRef.current = false; // Reset on error
@@ -217,12 +225,9 @@ export function useChimeMeeting({
     }
     setIsMuted(shouldMute);
     soundEffects.play("mic-toggle");
-<<<<<<< HEAD
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" && console.log(shouldMute ? "🔇 Muted" : "🔊 Unmuted");
-=======
-    console.log(shouldMute ? "🔇 Muted" : "🔊 Unmuted");
->>>>>>> ai-summary
+    process.env.NODE_ENV !== "production" &&
+      console.log(shouldMute ? "🔇 Muted" : "🔊 Unmuted");
   }, [isMuted]);
 
   // Toggle video
@@ -235,22 +240,14 @@ export function useChimeMeeting({
       meetingSession.audioVideo.stopLocalVideoTile();
       setIsVideoEnabled(false);
       soundEffects.play("camera-toggle");
-<<<<<<< HEAD
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       process.env.NODE_ENV !== "production" && console.log("📹 Video disabled");
-=======
-      console.log("📹 Video disabled");
->>>>>>> ai-summary
     } else {
       meetingSession.audioVideo.startLocalVideoTile();
       setIsVideoEnabled(true);
       soundEffects.play("camera-toggle");
-<<<<<<< HEAD
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       process.env.NODE_ENV !== "production" && console.log("📹 Video enabled");
-=======
-      console.log("📹 Video enabled");
->>>>>>> ai-summary
     }
   }, [isVideoEnabled]);
 

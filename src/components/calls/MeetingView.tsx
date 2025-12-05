@@ -7,7 +7,6 @@ import { ParticipantTile } from "./ParticipantTile";
 import { MeetingControls } from "./MeetingControls";
 import { useChimeMeeting } from "@/hooks/useChimeMeeting";
 import type { Meeting, Attendee } from "@aws-sdk/client-chime-sdk-meetings";
-import { toast } from "sonner";
 
 interface Participant {
   id: string;
@@ -114,7 +113,8 @@ export function MeetingView({
   const getGridClasses = () => {
     if (participantCount === 1) return "grid-cols-1";
     if (participantCount === 2) return "grid-cols-1 lg:grid-cols-2";
-    if (participantCount === 3) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+    if (participantCount === 3)
+      return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
     if (participantCount === 4) return "grid-cols-1 sm:grid-cols-2";
     // 5+ participants: use standard responsive grid
     return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
@@ -134,8 +134,16 @@ export function MeetingView({
 
       {/* Participants Grid */}
       <div className="flex-1 overflow-hidden flex items-center justify-center p-4 lg:p-6">
-        <div className={`w-full h-full ${participantCount <= 4 ? 'max-w-full' : 'max-w-7xl'}`}>
-          <div className={`grid ${getGridClasses()} gap-3 lg:gap-4 h-full ${participantCount <= 4 ? 'content-center' : ''}`}>
+        <div
+          className={`w-full h-full ${
+            participantCount <= 4 ? "max-w-full" : "max-w-7xl"
+          }`}
+        >
+          <div
+            className={`grid ${getGridClasses()} gap-3 lg:gap-4 h-full ${
+              participantCount <= 4 ? "content-center" : ""
+            }`}
+          >
             {displayParticipants.map((participant) => (
               <ParticipantTile
                 key={participant.id}

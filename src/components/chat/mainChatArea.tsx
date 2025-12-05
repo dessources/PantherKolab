@@ -30,6 +30,7 @@ interface MainChatAreaProps {
   onMessageInputChange: (value: string) => void;
   onSendMessage: (content: string) => void;
   onToggleProfile: () => void;
+  onUserClick?: (userId: string) => void; // New prop for clicking on user avatars/names
   loggedInUserAvatarInitials: string;
   loggedInUserId: string;
   isLoading?: boolean;
@@ -49,6 +50,7 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
       participantNames,
       onSendMessage,
       onToggleProfile,
+      onUserClick,
       loggedInUserAvatarInitials,
       loggedInUserId,
       isLoading,
@@ -121,13 +123,15 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
 
     const handleSearchClick = () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log("Opening search in conversation");
+      process.env.NODE_ENV !== "production" &&
+        console.log("Opening search in conversation");
       // TODO: Implement search in conversation
     };
 
     const handleMoreClick = () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log("Opening more options");
+      process.env.NODE_ENV !== "production" &&
+        console.log("Opening more options");
       // TODO: Implement more options menu
     };
 
@@ -146,12 +150,13 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
     const handleSendFile = () => {
       if (selectedFile) {
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        process.env.NODE_ENV !== "production" && console.log(
-          "Sending file:",
-          selectedFile.name,
-          "Caption:",
-          fileCaption
-        );
+        process.env.NODE_ENV !== "production" &&
+          console.log(
+            "Sending file:",
+            selectedFile.name,
+            "Caption:",
+            fileCaption
+          );
         // TODO: Implement actual file upload
         setSelectedFile(null);
         setFileCaption("");
@@ -233,7 +238,15 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
             <button
               onClick={() => {
                 if (selectedConversation.type === "DM") {
-                  onToggleProfile();
+                  // For DMs, find the other user's ID and use onUserClick for consistent toggle behavior
+                  const otherUserId = selectedConversation.participants.find(
+                    (id) => id !== loggedInUserId
+                  );
+                  if (otherUserId && onUserClick) {
+                    onUserClick(otherUserId);
+                  } else {
+                    onToggleProfile();
+                  }
                 }
               }}
               className="relative flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
@@ -259,7 +272,15 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
             <button
               onClick={() => {
                 if (selectedConversation?.type === "DM") {
-                  onToggleProfile();
+                  // For DMs, find the other user's ID and use onUserClick for consistent toggle behavior
+                  const otherUserId = selectedConversation.participants.find(
+                    (id) => id !== loggedInUserId
+                  );
+                  if (otherUserId && onUserClick) {
+                    onUserClick(otherUserId);
+                  } else {
+                    onToggleProfile();
+                  }
                 }
               }}
               className="flex flex-col text-left hover:opacity-80 transition-opacity cursor-pointer"
@@ -304,9 +325,11 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
         </div>
 
         {/* AI Summary Button */}
-        {selectedConversation && (
+        {selectedConversation && messages.length >= 20 && (
           <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
-            <SummaryButton conversationId={selectedConversation.conversationId} />
+            <SummaryButton
+              conversationId={selectedConversation.conversationId}
+            />
           </div>
         )}
 
@@ -344,8 +367,16 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                     {/* Incoming avatar */}
                     {!isOwn && (
                       <button
-                        onClick={onToggleProfile}
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          // If onUserClick is provided, use it (for group chats)
+                          // Otherwise fall back to onToggleProfile (for DMs)
+                          if (onUserClick) {
+                            onUserClick(message.senderId);
+                          } else {
+                            onToggleProfile();
+                          }
+                        }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
                         style={{ backgroundColor: "#0066CC" }}
                       >
                         {(() => {
@@ -377,8 +408,16 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
                     >
                       {!isOwn && selectedConversation.type === "GROUP" && (
                         <button
-                          onClick={onToggleProfile}
-                          className="text-xs font-semibold text-gray-700 mb-1 hover:underline capitalize"
+                          onClick={() => {
+                            // If onUserClick is provided, use it (for group chats)
+                            // Otherwise fall back to onToggleProfile (for DMs)
+                            if (onUserClick) {
+                              onUserClick(message.senderId);
+                            } else {
+                              onToggleProfile();
+                            }
+                          }}
+                          className="text-xs font-semibold text-gray-700 mb-1 hover:underline capitalize cursor-pointer"
                         >
                           {participantNames?.[message.senderId] ||
                             message.senderId}
