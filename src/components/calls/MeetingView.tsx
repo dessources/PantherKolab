@@ -4,6 +4,8 @@ import { useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { MeetingHeader } from "./MeetingHeader";
 import { ParticipantTile } from "./ParticipantTile";
+import { ParticipantStrip } from "./ParticipantStrip";
+import { ScreenShareView } from "./ScreenShareView";
 import { MeetingControls } from "./MeetingControls";
 import { useChimeMeeting } from "@/hooks/useChimeMeeting";
 import type { Meeting, Attendee } from "@aws-sdk/client-chime-sdk-meetings";
@@ -37,6 +39,7 @@ export function MeetingView({
   participants: mockParticipants,
   activeSpeakerId: mockActiveSpeakerId,
   isCallOwner,
+  localUserId,
   meeting,
   attendee,
   participantNames = {},
@@ -60,6 +63,10 @@ export function MeetingView({
     toggleMute,
     toggleVideo,
     bindVideoTile,
+    isScreenSharing,
+    contentTileId,
+    startScreenShare,
+    stopScreenShare,
   } = useChimeMeeting({
     meeting: meeting || null,
     attendee: attendee || null,
@@ -81,16 +88,24 @@ export function MeetingView({
     [bindVideoTile]
   );
 
+  // Separate content share from regular participant tiles
+  const contentTile = useMemo(() => {
+    return videoTiles.find((tile) => tile.isContent);
+  }, [videoTiles]);
+
+  const participantVideoTiles = useMemo(() => {
+    return videoTiles.filter((tile) => !tile.isContent);
+  }, [videoTiles]);
+
   // Map video tiles to participants (memoized to prevent recreation)
   const participants = useMemo(() => {
-    return videoTiles.map((tile) => {
-      // Extract userId from attendeeId (format: "userId#sessionId" or just "userId")
-      const userId = tile.attendeeId.split("#")[0];
-
+    return participantVideoTiles.map((tile) => {
       // Get display name from participantNames map, fallback to userId or "Unknown"
       const displayName = tile.isLocalTile
         ? "You"
-        : participantNames[userId] || userId || "Unknown";
+        : localUserId
+        ? participantNames[localUserId]
+        : "Unknown";
 
       return {
         id: tile.attendeeId,
@@ -101,7 +116,7 @@ export function MeetingView({
         tileId: tile.tileId,
       };
     });
-  }, [videoTiles, isMuted, participantNames]);
+  }, [participantVideoTiles, localUserId, participantNames, isMuted]);
 
   // Use mock participants if no real tiles yet (for testing)
   const displayParticipants =
@@ -120,84 +135,115 @@ export function MeetingView({
     return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
   };
 
+  // Check if screen sharing is active
+  const isScreenShareActive = !!contentTile;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50">
       {/* Hidden audio element for Chime SDK */}
       <audio id="chime-audio-output" className="hidden" />
 
-      {/* Header */}
-      <MeetingHeader
-        title={meetingTitle}
-        subtitle={meetingSubtitle}
-        onSettingsClick={onSettingsClick}
-      />
-
-      {/* Participants Grid */}
-      <div className="flex-1 overflow-hidden flex items-center justify-center p-4 lg:p-6">
-        <div
-          className={`w-full h-full ${
-            participantCount <= 4 ? "max-w-full" : "max-w-7xl"
-          }`}
-        >
-          <div
-            className={`grid ${getGridClasses()} gap-3 lg:gap-4 h-full ${
-              participantCount <= 4 ? "content-center" : ""
-            }`}
-          >
-            {displayParticipants.map((participant) => (
-              <ParticipantTile
-                key={participant.id}
-                name={participant.name}
-                isLocal={participant.isLocal}
-                isActiveSpeaker={displayActiveSpeakerId === participant.id}
-                isMuted={participant.isMuted}
-                hasVideo={participant.hasVideo}
-                tileId={
-                  (participant as Participant & { tileId: number }).tileId
-                }
-                onVideoElementReady={handleVideoElementReady}
-              />
-            ))}
-
-            {/* Empty State */}
-            {participants.length === 0 && (
-              <div className="col-span-full flex items-center justify-center py-20">
-                <div className="text-center">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <svg
-                      className="w-12 h-12 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 text-lg">
-                    Waiting for others to join...
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Header with responsive padding */}
+      <div className="px-0 md:px-8 lg:px-0 xl:px-0">
+        <MeetingHeader
+          title={meetingTitle}
+          subtitle={meetingSubtitle}
+          onSettingsClick={onSettingsClick}
+        />
       </div>
 
-      {/* Controls */}
-      <MeetingControls
-        isMuted={isMuted}
-        isVideoEnabled={isVideoEnabled}
-        onToggleMute={toggleMute}
-        onToggleVideo={toggleVideo}
-        isCallOwner={isCallOwner}
-        onEndCall={onEndCall}
-        onLeaveCall={onLeaveCall}
-      />
+      {/* Content area - conditional layout */}
+      {isScreenShareActive && contentTile ? (
+        /* Screen Share Layout */
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Top strip: Horizontal scrolling participant tiles (1/5 height) */}
+          <ParticipantStrip
+            participants={
+              participants as Array<Participant & { tileId: number }>
+            }
+            activeSpeakerId={displayActiveSpeakerId}
+            onVideoElementReady={handleVideoElementReady}
+          />
+
+          {/* Bottom area: Shared screen (4/5 height) */}
+          <ScreenShareView
+            contentTile={contentTile}
+            onVideoElementReady={handleVideoElementReady}
+          />
+        </div>
+      ) : (
+        /* Normal Grid Layout */
+        <div className="flex-1 overflow-hidden flex items-center justify-center p-4 md:px-8 lg:px-16 xl:px-24 lg:py-6">
+          <div
+            className={`w-full h-full ${
+              participantCount <= 4 ? "max-w-full" : "max-w-7xl"
+            }`}
+          >
+            <div
+              className={`grid ${getGridClasses()} gap-3 lg:gap-4 h-full ${
+                participantCount <= 4 ? "content-center" : ""
+              }`}
+            >
+              {displayParticipants.map((participant) => (
+                <ParticipantTile
+                  key={participant.id}
+                  name={participant.name}
+                  isLocal={participant.isLocal}
+                  isActiveSpeaker={displayActiveSpeakerId === participant.id}
+                  isMuted={participant.isMuted}
+                  hasVideo={participant.hasVideo}
+                  isScreenShareActive={isScreenShareActive}
+                  tileId={
+                    (participant as Participant & { tileId: number }).tileId
+                  }
+                  onVideoElementReady={handleVideoElementReady}
+                />
+              ))}
+
+              {/* Empty State */}
+              {participants.length === 0 && (
+                <div className="col-span-full flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <svg
+                        className="w-12 h-12 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-gray-500 text-lg">
+                      Waiting for others to join...
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls with responsive padding */}
+      <div className="px-0 md:px-8 lg:px-0 xl:px-0">
+        <MeetingControls
+          isMuted={isMuted}
+          isVideoEnabled={isVideoEnabled}
+          onToggleMute={toggleMute}
+          onToggleVideo={toggleVideo}
+          isCallOwner={isCallOwner}
+          onEndCall={onEndCall}
+          onLeaveCall={onLeaveCall}
+          isScreenSharing={isScreenSharing}
+          onShareScreen={isScreenSharing ? stopScreenShare : startScreenShare}
+        />
+      </div>
     </div>
   );
 }

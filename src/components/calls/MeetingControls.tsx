@@ -14,11 +14,13 @@ import {
   EllipsisVertical,
 } from "lucide-react";
 import { MoreOptionsModal } from "./MoreOptionsModal";
+import { useCallTimer } from "@/hooks/useCallTimer";
 
 interface MeetingControlsProps {
   isMuted: boolean;
   isVideoEnabled: boolean;
   isHandRaised?: boolean;
+  isScreenSharing?: boolean;
   onToggleMute: () => void;
   onToggleVideo: () => void;
   onToggleRaiseHand?: () => void;
@@ -34,6 +36,7 @@ export function MeetingControls({
   isMuted,
   isVideoEnabled,
   isHandRaised = false,
+  isScreenSharing = false,
   onToggleMute,
   onToggleVideo,
   onToggleRaiseHand,
@@ -45,10 +48,11 @@ export function MeetingControls({
   onLeaveCall,
 }: MeetingControlsProps) {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const callTime = useCallTimer(true); // Timer is always active when controls are shown
 
   return (
     <>
-      <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-4">
+      <div className="bg-white border-t border-gray-200 px-16 sm:px-6 py-4">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Left Controls - Audio/Video */}
           <div className="flex items-center gap-2 sm:gap-3">
@@ -103,8 +107,12 @@ export function MeetingControls({
             {/* Screen Share Button - hidden on mobile */}
             <button
               onClick={onShareScreen}
-              className="hidden sm:block p-4 rounded-lg bg-[#00376f] hover:bg-[#0052A3] transition-colors cursor-pointer"
-              aria-label="Share screen"
+              className={`hidden sm:block p-4 rounded-lg transition-colors cursor-pointer ${
+                isScreenSharing
+                  ? "bg-green-500 hover:bg-green-600 text-white"
+                  : "bg-[#00376f] hover:bg-[#0052A3] text-white"
+              }`}
+              aria-label={isScreenSharing ? "Stop sharing" : "Share screen"}
             >
               <svg
                 className="w-5 h-5 text-white"
@@ -112,7 +120,14 @@ export function MeetingControls({
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth="2" />
+                <rect
+                  x="2"
+                  y="3"
+                  width="20"
+                  height="14"
+                  rx="2"
+                  strokeWidth="2"
+                />
                 <path d="M8 21h8" strokeWidth="2" strokeLinecap="round" />
                 <path d="M12 17v4" strokeWidth="2" strokeLinecap="round" />
               </svg>
@@ -150,8 +165,15 @@ export function MeetingControls({
             </button>
           </div>
 
-          {/* Right Controls - Leave/End Call */}
+          {/* Right Controls - Timer + Leave/End Call */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Call Timer */}
+            <div className="hidden sm:flex items-center px-4 py-2 bg-gray-100 rounded-lg">
+              <span className="text-gray-700 font-mono font-medium text-sm">
+                {callTime}
+              </span>
+            </div>
+
             {/* Leave Call Button - shown to non-owners, hidden on mobile */}
             {onLeaveCall && !isCallOwner && (
               <button

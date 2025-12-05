@@ -39,6 +39,8 @@ export function useChimeMeeting({
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const hasStartedAudioVideoRef = useRef(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [contentTileId, setContentTileId] = useState<number | null>(null);
 
   // Initialize meeting session
   useEffect(() => {
@@ -67,6 +69,11 @@ export function useChimeMeeting({
             console.log("Video tile updated:", tileState);
           if (!tileState.boundAttendeeId) {
             return;
+          }
+
+          // Track content share separately
+          if (tileState.isContent) {
+            setContentTileId(tileState.tileId!);
           }
 
           setVideoTiles((prevTiles) => {
@@ -143,7 +150,18 @@ export function useChimeMeeting({
     // Cleanup on unmount
     return () => {
       if (meetingSessionRef.current) {
-        meetingSessionRef.current.audioVideo.stop();
+        const audioVideo = meetingSessionRef.current.audioVideo;
+
+        // Stop video input
+        audioVideo.stopLocalVideoTile();
+        audioVideo.stopVideoInput();
+
+        // Stop audio input
+        audioVideo.stopAudioInput();
+
+        // Stop the meeting session
+        audioVideo.stop();
+
         setIsInitialized(false);
         hasStartedAudioVideoRef.current = false; // Reset flag on cleanup
       }
@@ -263,6 +281,44 @@ export function useChimeMeeting({
     []
   );
 
+  // Start screen share
+  const startScreenShare = useCallback(async () => {
+    const meetingSession = meetingSessionRef.current;
+    if (!meetingSession) return;
+
+    try {
+      // Start content share with Chime (browser will show native picker)
+      await meetingSession.audioVideo.startContentShareFromScreenCapture();
+      setIsScreenSharing(true);
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" &&
+        console.log("✅ Screen sharing started");
+    } catch (error) {
+      console.error("Error starting screen share:", error);
+      onError?.(error as Error);
+    }
+  }, [onError]);
+
+  // Stop screen share
+  const stopScreenShare = useCallback(async () => {
+    const meetingSession = meetingSessionRef.current;
+    if (!meetingSession) return;
+
+    try {
+      await meetingSession.audioVideo.stopContentShare();
+      setIsScreenSharing(false);
+      setContentTileId(null);
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" &&
+        console.log("✅ Screen sharing stopped");
+    } catch (error) {
+      console.error("Error stopping screen share:", error);
+      onError?.(error as Error);
+    }
+  }, [onError]);
+
   // Memoize videoTiles array to prevent recreation on every render
   const videoTilesArray = useMemo(() => {
     return Array.from(videoTiles.values());
@@ -279,6 +335,10 @@ export function useChimeMeeting({
     toggleMute,
     toggleVideo,
     bindVideoTile,
+    isScreenSharing,
+    contentTileId,
+    startScreenShare,
+    stopScreenShare,
   };
 }
 

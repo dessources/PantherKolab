@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/contexts/AuthContext";
 import { SignUpParams } from "@/types/AuthContextTypes";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as authStyles from "@/components/auth/auth.style";
 
 export default function SignUp() {
@@ -21,8 +21,15 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth();
   const router = useRouter();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/chat");
+    }
+  }, [isAuthenticated, router]);
 
   // Password validation checks
   const passwordRequirements = {

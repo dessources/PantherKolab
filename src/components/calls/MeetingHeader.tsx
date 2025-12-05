@@ -1,16 +1,20 @@
-"use client"
+"use client";
 
-import { Settings } from 'lucide-react'
+import { Settings } from "lucide-react";
 
 interface MeetingHeaderProps {
-  title: string
-  subtitle?: string
-  onSettingsClick?: () => void
+  title: string;
+  subtitle?: string;
+  onSettingsClick?: () => void;
 }
 
-export function MeetingHeader({ title, subtitle, onSettingsClick }: MeetingHeaderProps) {
+export function MeetingHeader({
+  title,
+  subtitle,
+  onSettingsClick,
+}: MeetingHeaderProps) {
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <div className="bg-white border-b border-gray-200 px-4 lg:px-16 py-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
         {/* Logo */}
         <div className="w-12 h-12 bg-[#003366] rounded flex items-center justify-center">
@@ -35,5 +39,5 @@ export function MeetingHeader({ title, subtitle, onSettingsClick }: MeetingHeade
         </button>
       )}
     </div>
-  )
+  );
 }

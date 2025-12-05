@@ -1,20 +1,22 @@
-"use client"
+"use client";
 
-import { User } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { User } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 interface ParticipantTileProps {
-  name: string
-  isLocal?: boolean
-  isActiveSpeaker?: boolean
-  isMuted?: boolean
-  hasVideo?: boolean
-  tileId?: number
-  onVideoElementReady?: (tileId: number, element: HTMLVideoElement) => void
+  name: string;
+  isLocal?: boolean;
+  isActiveSpeaker?: boolean;
+  isMuted?: boolean;
+  hasVideo?: boolean;
+  tileId?: number;
+  isScreenShareActive: boolean;
+  onVideoElementReady?: (tileId: number, element: HTMLVideoElement) => void;
 }
 
 export function ParticipantTile({
   name,
+  isScreenShareActive,
   isLocal = false,
   isActiveSpeaker = false,
   isMuted = false,
@@ -37,14 +39,15 @@ export function ParticipantTile({
       onVideoElementReady(tileId, videoRef.current);
       hasBoundTileRef.current = tileId;
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log(`ParticipantTile: Bound tile ${tileId}`);
+      process.env.NODE_ENV !== "production" &&
+        console.log(`ParticipantTile: Bound tile ${tileId}`);
     }
   }, [hasVideo, tileId, onVideoElementReady]);
 
   return (
     <div
       className={`relative rounded-lg overflow-hidden bg-gradient-to-br from-[#003366] to-[#004080] w-full h-full min-h-[200px] flex items-center justify-center transition-all ${
-        isActiveSpeaker ? 'ring-4 ring-green-500' : ''
+        isActiveSpeaker ? "ring-4 ring-green-500" : ""
       }`}
     >
       {/* Video or Avatar */}
@@ -64,8 +67,8 @@ export function ParticipantTile({
 
       {/* Name Label */}
       <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-md">
-        <p className="text-white text-sm font-medium">
-          {name} {isLocal && '(You)'}
+        <p className="text-white text-sm font-medium capitalize">
+          {name} {isLocal && "(You)"}
         </p>
       </div>
 
@@ -87,5 +90,5 @@ export function ParticipantTile({
         </div>
       )}
     </div>
-  )
+  );
 }
