@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useCalls, type MeetingData } from "@/hooks/useCalls";
+import { toast } from "sonner";
 
 interface UseCallStateParams {
   userId: string;
@@ -31,12 +32,12 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     console.log(`Call ${sessionId} ended by ${endedBy}`);
     setShowMeeting(false);
     setMeetingData(null);
-    alert("Call has ended");
+    toast.info("Call has ended");
   }, []);
 
   const handleCallRejected = useCallback((sessionId: string) => {
     console.log("Call rejected:", sessionId);
-    alert("Call was declined");
+    toast.warning("Call was declined");
   }, []);
 
   const handleCallCancelled = useCallback(
@@ -59,7 +60,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
 
   const handleError = useCallback((error: string) => {
     console.error("Call error:", error);
-    alert("Call error: " + error);
+    toast.error("Call error: " + error);
   }, []);
 
   // Use the useCalls hook - only connect when fully authenticated
@@ -88,7 +89,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
   // Handle initiating a call
   const handleInitiateCall = useCallback(async () => {
     if (!recipientId.trim()) {
-      alert("Please enter a participant ID");
+      toast.warning("Please enter a participant ID");
       return;
     }
 
@@ -100,7 +101,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       });
     } catch (error) {
       console.error("Failed to initiate call:", error);
-      alert(
+      toast.error(
         "Failed to initiate call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -115,7 +116,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       await acceptCall(incomingCall.sessionId);
     } catch (error) {
       console.error("Failed to accept call:", error);
-      alert(
+      toast.error(
         "Failed to accept call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -143,7 +144,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       setMeetingData(null);
     } catch (error) {
       console.error("Failed to end call:", error);
-      alert(
+      toast.error(
         "Failed to end call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -160,7 +161,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       setMeetingData(null);
     } catch (error) {
       console.error("Failed to leave call:", error);
-      alert(
+      toast.error(
         "Failed to leave call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );

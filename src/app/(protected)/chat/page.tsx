@@ -15,6 +15,7 @@ import ProfileSidebar from "@/components/chat/profilesidebar";
 import { OutgoingCallModal } from "@/components/calls/OutgoingCallModal";
 import { MeetingView } from "@/components/calls/MeetingView";
 import { IncomingCallModal } from "@/components/calls/IncomingCallModal";
+import { toast } from "sonner";
 
 /**
  * Production Chat Page
@@ -98,11 +99,11 @@ export default function ChatPage() {
       targetCallType: "DIRECT" | "GROUP" = "DIRECT"
     ) => {
       if (!selectedConversation) {
-        alert("Please select a conversation to initiate a call.");
+        toast.warning("Please select a conversation to initiate a call.");
         return;
       }
       if (!currentUserId) {
-        alert("User not authenticated.");
+        toast.error("User not authenticated.");
         return;
       }
 
@@ -121,7 +122,7 @@ export default function ChatPage() {
           (id) => id !== currentUserId
         );
         if (!otherUserId) {
-          alert("Cannot initiate call: No other participant found in DM.");
+          toast.error("Cannot initiate call: No other participant found in DM.");
           return;
         }
         recipientIds = [currentUserId, otherUserId];
@@ -153,7 +154,7 @@ export default function ChatPage() {
         });
       } catch (error) {
         console.error("Error initiating call:", error);
-        alert(
+        toast.error(
           "Failed to initiate call: " +
             (error instanceof Error ? error.message : "Unknown error")
         );
@@ -294,7 +295,7 @@ export default function ChatPage() {
           localUserId={currentUserId}
           onEndCall={() => endCall(activeCall.sessionId!)}
           onLeaveCall={() => leaveCall(activeCall.sessionId!)}
-          onSettingsClick={() => alert("Settings clicked")}
+          onSettingsClick={() => toast.info("Settings clicked")}
         />
       ) : (
         "Loading..."

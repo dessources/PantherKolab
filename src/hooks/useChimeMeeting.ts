@@ -10,6 +10,7 @@ import {
   MeetingSessionStatusCode,
 } from "amazon-chime-sdk-js";
 import type { Meeting, Attendee } from "@aws-sdk/client-chime-sdk-meetings";
+import { soundEffects } from "@/lib/sounds/soundEffects";
 
 interface UseChimeMeetingProps {
   meeting: Meeting | null;
@@ -207,6 +208,7 @@ export function useChimeMeeting({
       meetingSession.audioVideo.realtimeUnmuteLocalAudio();
     }
     setIsMuted(shouldMute);
+    soundEffects.play("mic-toggle");
     console.log(shouldMute ? "🔇 Muted" : "🔊 Unmuted");
   }, [isMuted]);
 
@@ -219,10 +221,12 @@ export function useChimeMeeting({
     if (shouldDisable) {
       meetingSession.audioVideo.stopLocalVideoTile();
       setIsVideoEnabled(false);
+      soundEffects.play("camera-toggle");
       console.log("📹 Video disabled");
     } else {
       meetingSession.audioVideo.startLocalVideoTile();
       setIsVideoEnabled(true);
+      soundEffects.play("camera-toggle");
       console.log("📹 Video enabled");
     }
   }, [isVideoEnabled]);

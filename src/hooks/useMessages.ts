@@ -20,6 +20,7 @@ import type {
   UserTypingEvent,
   UserStoppedTypingEvent,
 } from "@/types/appsync-events";
+import { soundEffects } from "@/lib/sounds/soundEffects";
 
 interface UseMessagesOptions {
   conversationId: string | null;
@@ -174,6 +175,7 @@ export function useMessages({
         );
 
         let newCache: Message[];
+        let isNewMessage = false;
         if (existingIndex >= 0) {
           // Replace optimistic message with real one
           const oldId = cached[existingIndex].messageId;
@@ -182,6 +184,7 @@ export function useMessages({
           newCache = [...cached];
         } else {
           newCache = [...cached, newMessage];
+          isNewMessage = true;
         }
 
         const sortedCache = sortMessages(newCache);
@@ -190,6 +193,11 @@ export function useMessages({
         // Update state if this is the current conversation
         if (convId === conversationIdRef.current) {
           setMessages(sortedCache);
+
+          // Play sound for received messages (not sent by current user and not optimistic replacements)
+          if (isNewMessage && newMessage.senderId !== currentUserId) {
+            soundEffects.play("message-received");
+          }
         }
       }
 
@@ -260,7 +268,7 @@ export function useMessages({
         }
       }
     },
-    []
+    [currentUserId]
   );
 
   /**

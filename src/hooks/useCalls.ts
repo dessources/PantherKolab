@@ -27,6 +27,7 @@ import type {
   CallEvent,
 } from "@/types/appsync-events";
 import type { CallType } from "@/types/database";
+import { soundEffects } from "@/lib/sounds/soundEffects";
 
 // ============================================================================
 // Types
@@ -119,6 +120,7 @@ export function useCalls({
             callType: data.callType,
           };
           setIncomingCall(incoming);
+          soundEffects.play("call-ringing");
           onIncomingCall?.(incoming);
           break;
         }
@@ -139,6 +141,7 @@ export function useCalls({
           });
           setIsRinging(false);
           setIncomingCall(null);
+          soundEffects.stopRinging();
 
           const meetingData: MeetingData = {
             sessionId: data.sessionId,
@@ -169,6 +172,7 @@ export function useCalls({
           const data = event.data as CallRejectedEvent["data"];
           setIsRinging(false);
           isCallInitiatorRef.current = false;
+          soundEffects.stopRinging();
           onCallRejected?.(data.sessionId);
           break;
         }
@@ -179,6 +183,7 @@ export function useCalls({
           setIsRinging(false);
           setIncomingCall(null);
           isCallInitiatorRef.current = false;
+          soundEffects.play("call-ended");
           onCallEnded?.(data.sessionId, data.endedBy);
           break;
         }
@@ -187,6 +192,7 @@ export function useCalls({
           // Caller cancelled the call before recipient accepted
           const data = event.data as CallCancelledEvent["data"];
           setIncomingCall(null); // Dismiss the incoming call notification
+          soundEffects.stopRinging();
           onCallCancelled?.(data.sessionId, data.cancelledBy);
           break;
         }

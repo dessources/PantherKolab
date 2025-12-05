@@ -5,6 +5,7 @@ import { MeetingView } from "@/components/calls/MeetingView";
 import { IncomingCallModal } from "@/components/calls/IncomingCallModal";
 import { CallControlPanel } from "@/components/calls/CallControlPanel";
 import { useCallState } from "@/hooks/useCallState";
+import { toast } from "sonner";
 
 /**
  * Call Page - Production call interface with AppSync Events integration
@@ -135,7 +136,7 @@ export default function CallPage() {
           localUserId={localUserId}
           onEndCall={handleEndCall}
           onLeaveCall={handleLeaveCall}
-          onSettingsClick={() => alert("Settings clicked")}
+          onSettingsClick={() => toast.info("Settings clicked")}
         />
       )}
     </div>
