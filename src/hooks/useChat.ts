@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { useMessages } from "@/hooks/useMessages";
 import { useCalls, type MeetingData } from "@/hooks/useCalls"; // Import useCalls and MeetingData
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/chat/utils/conversationUtils";
 import { type SearchableUser } from "@/components/chat/utils/userSearch";
 import type { UserProfile } from "@/types/UserProfile";
+import { soundEffects } from "@/lib/sounds/soundEffects";
 
 export const useChat = (currentUserId: string) => {
   // State management
@@ -49,7 +51,8 @@ export const useChat = (currentUserId: string) => {
 
   // Callbacks for useCalls hook
   const handleCallConnected = useCallback((data: MeetingData) => {
-    console.log("Call connected!", data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Call connected!", data);
     // When a call connects, we should hide any outgoing call modal
     setShowOutgoingCall(false);
     setIsMeetingActive(true); // Show the MeetingView
@@ -57,31 +60,35 @@ export const useChat = (currentUserId: string) => {
   }, []);
 
   const handleCallEnded = useCallback((sessionId: string, endedBy: string) => {
-    console.log(`Call ${sessionId} ended by ${endedBy}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(`Call ${sessionId} ended by ${endedBy}`);
     setShowOutgoingCall(false);
     setIsMeetingActive(false); // Hide the MeetingView
     setMeetingData(null);
-    alert("Call has ended");
+    toast.info("Call has ended");
   }, []);
 
   const handleCallRejected = useCallback((sessionId: string) => {
-    console.log("Call rejected:", sessionId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Call rejected:", sessionId);
     setShowOutgoingCall(false);
-    alert("Call was declined");
+    toast.info("Call was declined");
   }, []);
 
   const handleCallCancelled = useCallback(
     (sessionId: string, cancelledBy: string) => {
-      console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
       setShowOutgoingCall(false);
-      alert("Call was cancelled");
+      toast.info("Call was cancelled");
     },
     []
   );
 
   const handleParticipantLeft = useCallback(
     (sessionId: string, userId: string, newOwnerId?: string) => {
-      console.log(
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log(
         `Participant ${userId} left call ${sessionId}, new owner: ${newOwnerId}`
       );
       // Handle UI updates for participant leaving if necessary
@@ -92,7 +99,7 @@ export const useChat = (currentUserId: string) => {
   const handleCallError = useCallback((error: string) => {
     console.error("Call error:", error);
     setShowOutgoingCall(false);
-    alert("Call error: " + error);
+    toast.error("Call error: " + error);
   }, []);
 
   const {
@@ -176,9 +183,10 @@ export const useChat = (currentUserId: string) => {
 
     try {
       await sendMessage(content, "TEXT");
+      soundEffects.play("message-sent");
     } catch (error) {
       console.error("Failed to send message:", error);
-      alert(
+      toast.error(
         "Failed to send message: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -266,14 +274,14 @@ export const useChat = (currentUserId: string) => {
       setUiConversations((prev) =>
         prev.filter((conv) => !conv.id.startsWith("temp-"))
       );
-      alert("Failed to create conversation. Please try again.");
+      toast.error("Failed to create conversation. Please try again.");
     }
   };
 
   // Handle new group creation
   const handleCreateGroup = async (name: string, members: SearchableUser[]) => {
     if (!name.trim() || members.length === 0) {
-      alert("Group name and at least one member are required.");
+      toast.warning("Group name and at least one member are required.");
       return;
     }
 
@@ -353,7 +361,7 @@ export const useChat = (currentUserId: string) => {
       setUiConversations((prev) =>
         prev.filter((conv) => conv.id !== tempConversationId)
       );
-      alert("Failed to create group. Please try again.");
+      toast.error("Failed to create group. Please try again.");
     }
   };
 

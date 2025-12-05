@@ -123,7 +123,8 @@ export function MeetingViewDev({
   // Handle leave with ownership transfer
   const handleLeaveWithTransfer = (newOwnerId: string) => {
     setShowEndCallModal(false);
-    console.log("Transferring ownership to:", newOwnerId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Transferring ownership to:", newOwnerId);
     // In production, this would pass newOwnerId in the PARTICIPANT_LEFT payload
     onLeaveCall?.();
   };

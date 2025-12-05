@@ -23,7 +23,7 @@ export const convertToUIConversation = (
     name: conv.name,
     type: conv.type === "GROUP" ? "group" : "direct",
     avatar: conv.avatar || "",
-    lastMessage: "No messages yet",
+    lastMessage: "",
     lastMessageTime: new Date(conv.createdAt).toLocaleDateString(),
     members: conv.participants?.length,
     unread: 0,

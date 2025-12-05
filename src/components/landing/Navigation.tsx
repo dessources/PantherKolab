@@ -8,15 +8,22 @@ export default function Navigation() {
 
   return (
     <nav className="bg-white sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24">
+      {/* <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24"> */}
+      <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-0">
         <div className="flex justify-between items-center h-20">
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-sky-600 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+            {/* <div className="w-10 h-10 bg-sky-600 rounded-lg flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-white"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
-            </div>
-            <span className="text-xl font-semibold text-sky-600">PantherKolab</span>
+            </div> */}
+            <span className="text-xl font-semibold text-sky-600">
+              PantherKolab
+            </span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-10">

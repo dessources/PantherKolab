@@ -36,7 +36,8 @@ export function ParticipantTile({
     ) {
       onVideoElementReady(tileId, videoRef.current);
       hasBoundTileRef.current = tileId;
-      console.log(`ParticipantTile: Bound tile ${tileId}`);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log(`ParticipantTile: Bound tile ${tileId}`);
     }
   }, [hasVideo, tileId, onVideoElementReady]);
 

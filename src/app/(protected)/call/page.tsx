@@ -131,12 +131,14 @@ export default function CallPage() {
           meetingSubtitle="Florida International University"
           isCallOwner={isCallOwner}
           meeting={meetingData.meeting}
-          attendee={localUserId ? meetingData.attendees?.[localUserId] : undefined}
+          attendee={
+            localUserId ? meetingData.attendees?.[localUserId] : undefined
+          }
           localUserId={localUserId}
           participantNames={{}} // Empty map for standalone calls - will display userIds
           onEndCall={handleEndCall}
           onLeaveCall={handleLeaveCall}
-          onSettingsClick={() => alert("Settings clicked")}
+          onSettingsClick={() => {}}
         />
       )}
     </div>

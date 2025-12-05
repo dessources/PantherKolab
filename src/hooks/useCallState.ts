@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { useCalls, type MeetingData } from "@/hooks/useCalls";
 
 interface UseCallStateParams {
@@ -22,33 +23,38 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
 
   // Callbacks for useCalls hook
   const handleCallConnected = useCallback((data: MeetingData) => {
-    console.log("Call connected! MeetingId:", data.meeting);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Call connected! MeetingId:", data.meeting);
     setMeetingData(data);
     setShowMeeting(true);
   }, []);
 
   const handleCallEnded = useCallback((sessionId: string, endedBy: string) => {
-    console.log(`Call ${sessionId} ended by ${endedBy}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(`Call ${sessionId} ended by ${endedBy}`);
     setShowMeeting(false);
     setMeetingData(null);
-    alert("Call has ended");
+    toast.info("Call has ended");
   }, []);
 
   const handleCallRejected = useCallback((sessionId: string) => {
-    console.log("Call rejected:", sessionId);
-    alert("Call was declined");
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Call rejected:", sessionId);
+    toast.info("Call was declined");
   }, []);
 
   const handleCallCancelled = useCallback(
     (sessionId: string, cancelledBy: string) => {
-      console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
     },
     []
   );
 
   const handleParticipantLeft = useCallback(
     (sessionId: string, userId: string, newOwnerId?: string) => {
-      console.log(
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log(
         `Participant ${userId} left call ${sessionId}${
           newOwnerId ? `, new owner: ${newOwnerId}` : ""
         }`
@@ -59,7 +65,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
 
   const handleError = useCallback((error: string) => {
     console.error("Call error:", error);
-    alert("Call error: " + error);
+    toast.error("Call error: " + error);
   }, []);
 
   // Use the useCalls hook - only connect when fully authenticated
@@ -88,7 +94,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
   // Handle initiating a call
   const handleInitiateCall = useCallback(async () => {
     if (!recipientId.trim()) {
-      alert("Please enter a participant ID");
+      toast.warning("Please enter a participant ID");
       return;
     }
 
@@ -100,7 +106,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       });
     } catch (error) {
       console.error("Failed to initiate call:", error);
-      alert(
+      toast.error(
         "Failed to initiate call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -115,7 +121,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       await acceptCall(incomingCall.sessionId);
     } catch (error) {
       console.error("Failed to accept call:", error);
-      alert(
+      toast.error(
         "Failed to accept call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -143,7 +149,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       setMeetingData(null);
     } catch (error) {
       console.error("Failed to end call:", error);
-      alert(
+      toast.error(
         "Failed to end call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
@@ -160,7 +166,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
       setMeetingData(null);
     } catch (error) {
       console.error("Failed to leave call:", error);
-      alert(
+      toast.error(
         "Failed to leave call: " +
           (error instanceof Error ? error.message : "Unknown error")
       );

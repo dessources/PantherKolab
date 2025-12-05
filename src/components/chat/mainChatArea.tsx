@@ -119,12 +119,14 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
     };
 
     const handleSearchClick = () => {
-      console.log("Opening search in conversation");
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log("Opening search in conversation");
       // TODO: Implement search in conversation
     };
 
     const handleMoreClick = () => {
-      console.log("Opening more options");
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log("Opening more options");
       // TODO: Implement more options menu
     };
 
@@ -142,7 +144,8 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
 
     const handleSendFile = () => {
       if (selectedFile) {
-        console.log(
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        process.env.NODE_ENV !== "production" && console.log(
           "Sending file:",
           selectedFile.name,
           "Caption:",

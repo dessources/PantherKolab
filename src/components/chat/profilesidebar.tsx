@@ -70,14 +70,18 @@ export default function ProfileSidebar({
     {
       icon: <MoreVertical className="w-5 h-5 text-white" />,
       label: "More",
-      onClick: () => console.log("More clicked"), // Placeholder
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      onClick: () => process.env.NODE_ENV !== "production" && console.log("More clicked"), // Placeholder
     },
   ];
 
   return (
     <div
-      className={`transition-all duration-300 ease-in-out bg-white flex-shrink-0
+      className={`transition-all duration-300 ease-in-out bg-white
         ${isVisible && hasData ? "w-96 border-l border-gray-200" : "w-0"}
+        lg:flex-shrink-0 lg:relative
+        fixed top-0 right-0 h-full z-50 lg:z-auto
+        ${isVisible && hasData ? "translate-x-0" : "translate-x-full"}
       `}
     >
       <div className="w-96 h-full flex flex-col overflow-y-auto">

@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(
       `[Calls] User ${auth.userId} left call ${sessionId}${
         transferredOwnerId
           ? `, ownership transferred to ${transferredOwnerId}`

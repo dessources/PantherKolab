@@ -1,17 +1,22 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { MessageSquare, Phone, Settings, User, Menu } from "lucide-react";
 import { useAuth } from "@/components/contexts/AuthContext";
 import { useChat } from "@/hooks/useChat";
 import { getRecentUsers } from "@/components/chat/utils/conversationUtils";
-import { getProfileData } from "@/components/chat/utils/profileUtils";
+import {
+  getProfileData,
+  getCurrentUserProfileData,
+} from "@/components/chat/utils/profileUtils";
 import { getInitials } from "@/components/chat/utils/textUtils";
 import ConversationList from "@/components/chat/conversationList";
 import MainChatArea, {
   type MainChatAreaRef,
 } from "@/components/chat/mainChatArea";
 import ProfileSidebar from "@/components/chat/profilesidebar";
+import CurrentUserProfileSidebar from "@/components/chat/CurrentUserProfileSidebar";
 import { OutgoingCallModal } from "@/components/calls/OutgoingCallModal";
 import { MeetingView } from "@/components/calls/MeetingView";
 import { IncomingCallModal } from "@/components/calls/IncomingCallModal";
@@ -67,6 +72,7 @@ export default function ChatPage() {
   } = useChat(currentUserId);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [showCurrentUserProfile, setShowCurrentUserProfile] = useState(false);
 
   const profileData = getProfileData(selectedConversation, currentUserId);
 
@@ -77,6 +83,11 @@ export default function ChatPage() {
   const currentUserName =
     selectedConversation?.participantNames?.[currentUserId] || "You";
   const currentUserInitials = getInitials(currentUserName);
+
+  const currentUserProfileData = getCurrentUserProfileData(
+    currentUserId,
+    currentUserName
+  );
 
   // Filter UI conversations based on active tab
   const filteredConversations = uiConversations.filter((conv) => {
@@ -98,11 +109,11 @@ export default function ChatPage() {
       targetCallType: "DIRECT" | "GROUP" = "DIRECT"
     ) => {
       if (!selectedConversation) {
-        alert("Please select a conversation to initiate a call.");
+        toast.warning("Please select a conversation to initiate a call.");
         return;
       }
       if (!currentUserId) {
-        alert("User not authenticated.");
+        toast.error("User not authenticated.");
         return;
       }
 
@@ -121,7 +132,7 @@ export default function ChatPage() {
           (id) => id !== currentUserId
         );
         if (!otherUserId) {
-          alert("Cannot initiate call: No other participant found in DM.");
+          toast.error("Cannot initiate call: No other participant found in DM.");
           return;
         }
         recipientIds = [currentUserId, otherUserId];
@@ -153,7 +164,7 @@ export default function ChatPage() {
         });
       } catch (error) {
         console.error("Error initiating call:", error);
-        alert(
+        toast.error(
           "Failed to initiate call: " +
             (error instanceof Error ? error.message : "Unknown error")
         );
@@ -228,6 +239,7 @@ export default function ChatPage() {
         </div>
 
         <button
+          onClick={() => setShowCurrentUserProfile(true)}
           className={`flex items-center gap-3 p-2 text-white hover:bg-blue-700 rounded-lg transition-colors cursor-pointer ${
             sidebarExpanded ? "w-40 mx-auto px-4" : "mx-auto"
           }`}
@@ -239,29 +251,39 @@ export default function ChatPage() {
         </button>
       </div>
 
-      {/* Conversation List Component */}
-      {loadingConversations ? (
-        <div className="w-96 flex items-center justify-center bg-gray-50">
-          <p className="text-gray-500">Loading conversations...</p>
-        </div>
-      ) : conversationsError ? (
-        <div className="w-96 flex items-center justify-center bg-gray-50">
-          <p className="text-red-500">Error: {conversationsError}</p>
-        </div>
-      ) : (
-        <ConversationList
-          conversations={searchedConversations}
-          selectedConversation={selectedUIConversation!}
-          onSelectConversation={handleSelectConversation}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          recentUsers={getRecentUsers(conversations, currentUserId)}
-          onSelectUser={handleSelectUser}
-          onCreateGroup={handleCreateGroup}
+      {/* Conversation List Container with Current User Profile */}
+      <div className="relative">
+        {/* Current User Profile Sidebar */}
+        <CurrentUserProfileSidebar
+          profileData={currentUserProfileData}
+          isVisible={showCurrentUserProfile}
+          onClose={() => setShowCurrentUserProfile(false)}
         />
-      )}
+
+        {/* Conversation List Component */}
+        {loadingConversations ? (
+          <div className="w-96 flex items-center justify-center bg-gray-50">
+            <p className="text-gray-500">Loading conversations...</p>
+          </div>
+        ) : conversationsError ? (
+          <div className="w-96 flex items-center justify-center bg-gray-50">
+            <p className="text-red-500">Error: {conversationsError}</p>
+          </div>
+        ) : (
+          <ConversationList
+            conversations={searchedConversations}
+            selectedConversation={selectedUIConversation!}
+            onSelectConversation={handleSelectConversation}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            recentUsers={getRecentUsers(conversations, currentUserId)}
+            onSelectUser={handleSelectUser}
+            onCreateGroup={handleCreateGroup}
+          />
+        )}
+      </div>
 
       {/* Main Chat Area Component */}
       {!isMeetingActive ? (
@@ -295,7 +317,7 @@ export default function ChatPage() {
           participantNames={selectedConversation?.participantNames || {}}
           onEndCall={() => endCall(activeCall.sessionId!)}
           onLeaveCall={() => leaveCall(activeCall.sessionId!)}
-          onSettingsClick={() => alert("Settings clicked")}
+          onSettingsClick={() => toast.info("Settings clicked")}
         />
       ) : (
         "Loading..."

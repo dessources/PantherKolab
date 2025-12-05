@@ -45,7 +45,8 @@ export async function publishEvent(
     );
   }
 
-  console.log(`[AppSync] Server published ${event.type} to ${channel}`);
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  process.env.NODE_ENV !== "production" && console.log(`[AppSync] Server published ${event.type} to ${channel}`);
 }
 
 /**
@@ -86,7 +87,8 @@ export async function batchPublish(
     );
   }
 
-  console.log(
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  process.env.NODE_ENV !== "production" && console.log(
     `[AppSync] Server batch published ${eventList.length} events to ${channel}`
   );
 }
@@ -113,7 +115,8 @@ export async function publishToUsers(
     })
   );
 
-  console.log(
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  process.env.NODE_ENV !== "production" && console.log(
     `[AppSync] Published ${event.type} to ${userIds.length} user channels via server`
   );
 }

@@ -62,12 +62,14 @@ export async function subscribeToChannel<T = unknown>(
       },
     });
 
-    console.log(`[AppSync] Subscribed to ${channelPath}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(`[AppSync] Subscribed to ${channelPath}`);
 
     return {
       close: () => {
         channel.close();
-        console.log(`[AppSync] Unsubscribed from ${channelPath}`);
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        process.env.NODE_ENV !== "production" && console.log(`[AppSync] Unsubscribed from ${channelPath}`);
       },
     };
   } catch (error) {

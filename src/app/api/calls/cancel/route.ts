@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
       auth.idToken
     );
 
-    console.log(`[Calls] Call cancelled: ${sessionId}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(`[Calls] Call cancelled: ${sessionId}`);
 
     return NextResponse.json({
       success: true,
