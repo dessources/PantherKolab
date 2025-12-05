@@ -17,12 +17,13 @@ npm install aws-amplify @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb aws-jwt-v
 ### 2. Environment Variables (`.env.local`)
 
 Required environment variables:
+
 ```bash
 NEXT_PUBLIC_COGNITO_USER_POOL_ID=your_pool_id
 NEXT_PUBLIC_COGNITO_CLIENT_ID=your_client_id
 NEXT_PUBLIC_AWS_REGION=your_region
 AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
+APP_AWS_SECRET_ACCESS_KEY=your_secret
 DYNAMODB_USERS_TABLE=PantherKolab-Users-dev
 ```
 
@@ -197,7 +198,7 @@ Get user profile (must be authenticated).
   "email": "user@email.com",
   "firstName": "John",
   "lastName": "Doe",
-  "fullName": "John Doe",
+  "fullName": "John Doe"
   // ... other user fields
 }
 ```
@@ -209,6 +210,7 @@ Update user profile (must be authenticated, can only update own profile).
 **Authentication Required:** Bearer token in Authorization header
 
 **Request Body:**
+
 ```json
 {
   "firstName": "Jane",
@@ -285,23 +287,28 @@ PUT http://localhost:3000/api/users/[id]
 **Test full authentication flow:**
 
 1. **Register** at `/auth/signup`
+
    - Enter FIU email, password, and name
    - User is created in Cognito and DynamoDB
    - Verification code sent to email
 
 2. **Verify Email** at `/auth/confirm-email?email=user@fiu.edu`
+
    - Enter 6-digit code from email
    - Account is activated
 
 3. **Login** at `/auth/login`
+
    - Enter email and password
    - Redirected to dashboard on success
 
 4. **Forgot Password** at `/auth/forgot-password`
+
    - Enter email to receive reset code
    - Redirected to reset password page
 
 5. **Reset Password** at `/auth/reset-password?email=user@fiu.edu`
+
    - Enter reset code and new password
    - Redirected to login
 
@@ -312,6 +319,7 @@ PUT http://localhost:3000/api/users/[id]
 ## Username Format
 
 **Important:** The app uses `email.split("@")[0]` as the Cognito username (e.g., "johndoe" from "johndoe@fiu.edu"). This format must be used consistently across:
+
 - Signup
 - Login
 - Email verification

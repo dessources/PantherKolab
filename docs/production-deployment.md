@@ -5,6 +5,7 @@ This guide covers deploying PantherKolab to production with Socket.IO support.
 ## Overview
 
 PantherKolab uses a **custom Node.js server** ([server.ts](../server.ts)) that combines:
+
 - Next.js application server
 - Socket.IO server for real-time features (calls, messages)
 
@@ -36,7 +37,7 @@ NEXT_PUBLIC_COGNITO_CLIENT_ID=2fahfmaruotenn36rnavjm51s5
 
 # AWS Credentials (production)
 AWS_ACCESS_KEY_ID=your-production-key
-AWS_SECRET_ACCESS_KEY=your-production-secret
+APP_AWS_SECRET_ACCESS_KEY=your-production-secret
 APPSYNC_EVENT_API_ID=your-production-appsync-id
 
 # Optional: Custom port (defaults to 3000)
@@ -54,6 +55,7 @@ npm start
 This runs: `NODE_ENV=production tsx server.ts`
 
 The server will:
+
 - Start Next.js in production mode
 - Initialize Socket.IO server
 - Bind to `0.0.0.0:3000` (all network interfaces)
@@ -66,11 +68,13 @@ The server will:
 ### Server Configuration ([server.ts](../server.ts))
 
 **Development Mode:**
+
 - Hostname: `localhost`
 - CORS: `*` (allow all origins)
 - Auto-reload on file changes
 
 **Production Mode:**
+
 - Hostname: `0.0.0.0` (binds to all interfaces)
 - CORS: Only `pantherkolab.com`, `www.pantherkolab.com`, and `NEXT_PUBLIC_APP_URL`
 - Optimized build from `.next` directory
@@ -89,14 +93,16 @@ The client ([src/lib/socket-client.ts](../src/lib/socket-client.ts)) automatical
 **Transports enabled:** WebSocket (preferred) and HTTP long-polling (fallback)
 
 **Client side:**
+
 ```typescript
-transports: ["websocket", "polling"]
+transports: ["websocket", "polling"];
 ```
 
 **Server side:**
+
 ```typescript
-transports: ["websocket", "polling"]
-allowEIO3: true  // Compatibility with older clients
+transports: ["websocket", "polling"];
+allowEIO3: true; // Compatibility with older clients
 ```
 
 ---
@@ -130,6 +136,7 @@ aws ec2 associate-address --instance-id <instance-id> --allocation-id <allocatio
 **3. IAM Role for EC2**
 
 Create an IAM role with these policies and attach to the EC2 instance:
+
 - `AmazonDynamoDBFullAccess`
 - `AmazonChimeSDK`
 - `CloudWatchAgentServerPolicy`
@@ -204,7 +211,7 @@ APPSYNC_EVENT_API_KEY=da2-xxxxx
 PORT=3000
 ```
 
-**Note:** Do NOT include `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` - the IAM role provides credentials automatically.
+**Note:** Do NOT include `AWS_ACCESS_KEY_ID` or `APP_AWS_SECRET_ACCESS_KEY` - the IAM role provides credentials automatically.
 
 ---
 
@@ -216,22 +223,24 @@ Create `/home/ec2-user/pantherkolab/ecosystem.config.js`:
 
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'pantherkolab',
-    script: 'server.ts',
-    interpreter: 'npx',
-    interpreter_args: 'tsx',
-    cwd: '/home/ec2-user/pantherkolab',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
+  apps: [
+    {
+      name: "pantherkolab",
+      script: "server.ts",
+      interpreter: "npx",
+      interpreter_args: "tsx",
+      cwd: "/home/ec2-user/pantherkolab",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3000,
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "500M",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
     },
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '500M',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
-  }]
+  ],
 };
 ```
 
@@ -308,10 +317,10 @@ sudo systemctl start nginx
 
 Point your domain's A record to the Elastic IP:
 
-| Record Type | Host | Value |
-|-------------|------|-------|
-| A | @ | <Elastic-IP> |
-| A | www | <Elastic-IP> |
+| Record Type | Host | Value        |
+| ----------- | ---- | ------------ |
+| A           | @    | <Elastic-IP> |
+| A           | www  | <Elastic-IP> |
 
 **11. SSL Certificate with Let's Encrypt**
 
@@ -361,13 +370,13 @@ Make executable: `chmod +x /home/ec2-user/deploy.sh`
 
 #### Estimated Monthly Cost
 
-| Resource | Cost |
-|----------|------|
+| Resource      | Cost                        |
+| ------------- | --------------------------- |
 | EC2 t4g.micro | $0 (free tier) or ~$6/month |
-| Elastic IP | $0 (while attached) |
-| EBS 20GB gp3 | ~$1.60/month |
-| Data transfer | ~$1-3/month |
-| **Total** | **~$3-10/month** |
+| Elastic IP    | $0 (while attached)         |
+| EBS 20GB gp3  | ~$1.60/month                |
+| Data transfer | ~$1-3/month                 |
+| **Total**     | **~$3-10/month**            |
 
 ### Docker Deployment
 
@@ -401,6 +410,7 @@ CMD ["npm", "start"]
 ```
 
 Build and run:
+
 ```bash
 docker build -t pantherkolab .
 docker run -p 3000:3000 --env-file .env.production pantherkolab
@@ -413,6 +423,7 @@ Deploy to Vercel's free tier by replacing Socket.IO with AWS AppSync Events API 
 #### Overview
 
 This approach eliminates the need for `server.ts` by using:
+
 - **Vercel** — Hosts Next.js app (serverless)
 - **AWS AppSync Events** — Handles real-time WebSocket connections
 - **Cognito** — Authentication at the API level
@@ -448,16 +459,17 @@ This approach eliminates the need for `server.ts` by using:
 
 Create these namespaces in the AppSync console:
 
-| Namespace | Purpose | onPublish Handler |
-|-----------|---------|-------------------|
-| `/chats` | Message events | Add `timestamp` field |
-| `/calls` | Call signaling | Add `timestamp` field |
-| `/typing` | Typing indicators | None (ephemeral) |
+| Namespace | Purpose           | onPublish Handler     |
+| --------- | ----------------- | --------------------- |
+| `/chats`  | Message events    | Add `timestamp` field |
+| `/calls`  | Call signaling    | Add `timestamp` field |
+| `/typing` | Typing indicators | None (ephemeral)      |
 
 **Example onPublish handler** (add in console):
+
 ```javascript
 export function onPublish(ctx) {
-  ctx.events.forEach(event => {
+  ctx.events.forEach((event) => {
     event.timestamp = util.time.nowISO8601();
   });
   return ctx.events;
@@ -467,6 +479,7 @@ export function onPublish(ctx) {
 **3. Note Your Endpoints**
 
 After creation, note these values:
+
 - HTTP Endpoint: `https://xxx.appsync-api.us-east-1.amazonaws.com/event`
 - Realtime Endpoint: `wss://xxx.appsync-realtime-api.us-east-1.amazonaws.com/event/realtime`
 
@@ -498,7 +511,7 @@ npm uninstall socket.io socket.io-client
 
 ```typescript
 // Client-side AppSync Events subscription
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const REALTIME_ENDPOINT = process.env.NEXT_PUBLIC_APPSYNC_REALTIME_ENDPOINT!;
 const HTTP_ENDPOINT = process.env.NEXT_PUBLIC_APPSYNC_EVENT_HTTP_ENDPOINT!;
@@ -508,10 +521,10 @@ export async function publishEvent(channel: string, event: object) {
   const token = session.tokens?.accessToken?.toString();
 
   const response = await fetch(HTTP_ENDPOINT, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token!,
+      "Content-Type": "application/json",
+      Authorization: token!,
     },
     body: JSON.stringify({
       channel,
@@ -538,46 +551,45 @@ export function subscribeToChannel(
 **5. Replace Socket.IO Usage**
 
 Before (Socket.IO):
+
 ```typescript
 socket.emit('send-message', { conversationId, content });
 socket.on('new-message', (message) => { ... });
 ```
 
 After (AppSync Events + API Route):
+
 ```typescript
 // Send message: publish to AppSync AND persist to DB
 await Promise.all([
   publishEvent(`/chats/${conversationId}`, {
-    type: 'MESSAGE_SENT',
-    data: { content, senderId: userId }
+    type: "MESSAGE_SENT",
+    data: { content, senderId: userId },
   }),
-  fetch('/api/messages', {
-    method: 'POST',
-    body: JSON.stringify({ conversationId, content })
-  })
+  fetch("/api/messages", {
+    method: "POST",
+    body: JSON.stringify({ conversationId, content }),
+  }),
 ]);
 
 // Receive messages: subscribe to channel
-const unsubscribe = subscribeToChannel(
-  `/chats/${conversationId}`,
-  (event) => {
-    if (event.type === 'MESSAGE_SENT') {
-      addMessage(event.data);
-    }
+const unsubscribe = subscribeToChannel(`/chats/${conversationId}`, (event) => {
+  if (event.type === "MESSAGE_SENT") {
+    addMessage(event.data);
   }
-);
+});
 ```
 
 ---
 
 #### Phase 3: Channel Design
 
-| Channel Pattern | Use Case | Subscribers |
-|-----------------|----------|-------------|
-| `/chats/{conversationId}` | Messages in a conversation | All participants |
-| `/calls/{sessionId}` | Call signaling | Caller + recipient |
-| `/users/{userId}` | Direct notifications | Single user |
-| `/typing/{conversationId}` | Typing indicators | All participants |
+| Channel Pattern            | Use Case                   | Subscribers        |
+| -------------------------- | -------------------------- | ------------------ |
+| `/chats/{conversationId}`  | Messages in a conversation | All participants   |
+| `/calls/{sessionId}`       | Call signaling             | Caller + recipient |
+| `/users/{userId}`          | Direct notifications       | Single user        |
+| `/typing/{conversationId}` | Typing indicators          | All participants   |
 
 **Call Signaling Flow:**
 
@@ -617,7 +629,7 @@ NEXT_PUBLIC_APPSYNC_REALTIME_ENDPOINT=wss://xxx.appsync-realtime-api.us-east-1.a
 
 # AWS (for API routes - use Vercel's AWS integration or env vars)
 AWS_ACCESS_KEY_ID=xxxxx
-AWS_SECRET_ACCESS_KEY=xxxxx
+APP_AWS_SECRET_ACCESS_KEY=xxxxx
 AWS_REGION=us-east-1
 
 # DynamoDB Tables
@@ -640,26 +652,26 @@ Or enable automatic deployments on push to `main`.
 
 #### Estimated Monthly Cost
 
-| Resource | Cost |
-|----------|------|
-| Vercel (Hobby) | $0 |
+| Resource                   | Cost                                     |
+| -------------------------- | ---------------------------------------- |
+| Vercel (Hobby)             | $0                                       |
 | AppSync Events (free tier) | $0 (250K connections, 1M messages/month) |
-| DynamoDB | ~$0-2 (on-demand, low usage) |
-| Cognito | $0 (first 50K MAU free) |
-| **Total** | **$0-2/month** |
+| DynamoDB                   | ~$0-2 (on-demand, low usage)             |
+| Cognito                    | $0 (first 50K MAU free)                  |
+| **Total**                  | **$0-2/month**                           |
 
 ---
 
 #### Trade-offs vs Socket.IO
 
-| Aspect | Socket.IO (EC2) | AppSync Events (Vercel) |
-|--------|-----------------|-------------------------|
-| Cost | ~$3-10/month | ~$0/month |
-| Latency | ~10-50ms | ~50-150ms |
-| Setup complexity | Higher (server management) | Lower (serverless) |
-| Scaling | Manual | Automatic |
-| User presence | Built-in (rooms) | Requires custom impl |
-| Maintenance | PM2, Nginx, SSL renewal | Zero |
+| Aspect           | Socket.IO (EC2)            | AppSync Events (Vercel) |
+| ---------------- | -------------------------- | ----------------------- |
+| Cost             | ~$3-10/month               | ~$0/month               |
+| Latency          | ~10-50ms                   | ~50-150ms               |
+| Setup complexity | Higher (server management) | Lower (serverless)      |
+| Scaling          | Manual                     | Automatic               |
+| User presence    | Built-in (rooms)           | Requires custom impl    |
+| Maintenance      | PM2, Nginx, SSL renewal    | Zero                    |
 
 **Best for:** Passion projects, MVPs, low-traffic apps where cost matters more than minimal latency.
 
@@ -678,6 +690,7 @@ If you need Socket.IO specifically, use the [AWS EC2](#aws-ec2) or [Docker](#doc
 ### WebSocket Connection Fails
 
 **Symptoms:**
+
 - Socket.IO falls back to polling
 - Connection errors in browser console
 - `ERR_CONNECTION_REFUSED` or `wss:// failed`
@@ -685,6 +698,7 @@ If you need Socket.IO specifically, use the [AWS EC2](#aws-ec2) or [Docker](#doc
 **Solutions:**
 
 1. **Check server is using custom server:**
+
    ```bash
    # Correct (uses server.ts with Socket.IO)
    npm start
@@ -694,18 +708,21 @@ If you need Socket.IO specifically, use the [AWS EC2](#aws-ec2) or [Docker](#doc
    ```
 
 2. **Verify environment variables:**
+
    ```bash
    echo $NEXT_PUBLIC_APP_URL
    # Should output: https://pantherkolab.com
    ```
 
 3. **Check reverse proxy WebSocket headers:**
+
    ```nginx
    proxy_set_header Upgrade $http_upgrade;
    proxy_set_header Connection "upgrade";
    ```
 
 4. **Verify firewall allows port 3000:**
+
    ```bash
    sudo ufw allow 3000
    ```
@@ -716,16 +733,19 @@ If you need Socket.IO specifically, use the [AWS EC2](#aws-ec2) or [Docker](#doc
 ### Authentication Issues
 
 **Symptoms:**
+
 - "Unauthorized" Socket.IO errors
 - Connection immediately disconnects
 
 **Solutions:**
 
 1. **Verify JWT token is being sent:**
+
    - Check browser DevTools > Network > socket.io > Headers
    - Look for `auth.token` in connection handshake
 
 2. **Check Cognito configuration:**
+
    ```bash
    # Verify environment variables match AWS Cognito
    echo $NEXT_PUBLIC_COGNITO_USER_POOL_ID
@@ -740,11 +760,13 @@ If you need Socket.IO specifically, use the [AWS EC2](#aws-ec2) or [Docker](#doc
 ### Server Won't Start
 
 **Symptoms:**
+
 - `Error: listen EADDRINUSE: address already in use`
 
 **Solutions:**
 
 1. **Check if port 3000 is already in use:**
+
    ```bash
    lsof -i :3000
    # Kill the process
@@ -795,11 +817,13 @@ server.on("request", (req, res) => {
 ### Enable Compression
 
 Install compression middleware:
+
 ```bash
 npm install compression
 ```
 
 Update [server.ts](../server.ts):
+
 ```typescript
 import compression from "compression";
 
@@ -817,8 +841,9 @@ io.use((socket, next) => {
   const userId = socket.handshake.auth.userId;
 
   // Limit to 5 connections per user
-  const userSockets = Array.from(io.sockets.sockets.values())
-    .filter(s => s.handshake.auth.userId === userId);
+  const userSockets = Array.from(io.sockets.sockets.values()).filter(
+    (s) => s.handshake.auth.userId === userId
+  );
 
   if (userSockets.length >= 5) {
     return next(new Error("Too many connections"));

@@ -7,8 +7,8 @@ import { getAuthenticatedUser, verifyUserMatch } from "@/lib/auth/api-auth";
 const chime = new ChimeSDKMeetings({
   region: process.env.AWS_CHIME_REGION || process.env.AWS_REGION || "us-east-1",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.APP_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.APP_AWS_SECRET_ACCESS_KEY!,
   },
 });
 
@@ -35,14 +35,18 @@ export async function POST(req: NextRequest) {
     // Authenticate the request
     const auth = await getAuthenticatedUser();
     if (!auth) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const { action, sessionId, userId: bodyUserId, userName, meetingId, attendeeId } = body;
+    const {
+      action,
+      sessionId,
+      userId: bodyUserId,
+      userName,
+      meetingId,
+      attendeeId,
+    } = body;
     const clientId = req.headers.get("x-client-id") || generateClientId();
 
     // Verify the userId matches the authenticated user (if provided in body)
@@ -190,7 +194,11 @@ export async function POST(req: NextRequest) {
 
         // Update participant status (use authenticated userId)
         if (sessionId) {
-          await callService.updateParticipantStatus(sessionId, auth.userId, "LEFT");
+          await callService.updateParticipantStatus(
+            sessionId,
+            auth.userId,
+            "LEFT"
+          );
         }
 
         return NextResponse.json({ success: true });

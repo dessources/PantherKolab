@@ -34,9 +34,11 @@ Before starting, ensure you have:
 **Purpose:** Store user profiles and academic information
 
 **Primary Key:**
+
 - Partition Key: `userId` (String) - Cognito user sub
 
 **Attributes:**
+
 ```typescript
 {
   userId: string            // Partition key (Cognito sub)
@@ -57,6 +59,7 @@ Before starting, ensure you have:
 ```
 
 **Global Secondary Indexes (GSI):**
+
 - `EmailIndex`: email (PK) - for email lookups
 - `MajorIndex`: major (PK), year (SK) - for finding students by major/year
 
@@ -67,9 +70,11 @@ Before starting, ensure you have:
 **Purpose:** Store conversation metadata (DMs and groups)
 
 **Primary Key:**
+
 - Partition Key: `conversationId` (String)
 
 **Attributes:**
+
 ```typescript
 {
   conversationId: string     // UUID
@@ -87,6 +92,7 @@ Before starting, ensure you have:
 ```
 
 **Global Secondary Indexes (GSI):**
+
 - `ParticipantIndex`: Add participants as a List attribute, use `contains` for queries
 
 ---
@@ -96,10 +102,12 @@ Before starting, ensure you have:
 **Purpose:** Store all messages (text, audio, media)
 
 **Primary Key:**
+
 - Partition Key: `conversationId` (String)
 - Sort Key: `timestamp` (String) - ISO timestamp
 
 **Attributes:**
+
 ```typescript
 {
   conversationId: string    // Partition key
@@ -121,6 +129,7 @@ Before starting, ensure you have:
 ```
 
 **Global Secondary Indexes (GSI):**
+
 - `MessageIdIndex`: messageId (PK) - for direct message lookups
 
 ---
@@ -130,9 +139,11 @@ Before starting, ensure you have:
 **Purpose:** Store group-specific settings and metadata
 
 **Primary Key:**
+
 - Partition Key: `groupId` (String)
 
 **Attributes:**
+
 ```typescript
 {
   groupId: string             // Same as conversationId for groups
@@ -152,6 +163,7 @@ Before starting, ensure you have:
 ```
 
 **Global Secondary Indexes (GSI):**
+
 - `ClassCodeIndex`: classCode (PK), semester (SK) - for finding class groups
 
 ---
@@ -169,6 +181,7 @@ Before starting, ensure you have:
 #### Step 2: Create Users Table
 
 **Configuration:**
+
 ```
 Table name: PantherKolab-Users-dev
 Partition key: userId (String)
@@ -182,6 +195,7 @@ Encryption: AWS owned key (for dev)
 **Add Global Secondary Indexes:**
 
 1. EmailIndex:
+
    - Partition key: `email` (String)
    - Projection: All attributes
    - Capacity: On-demand
@@ -210,6 +224,7 @@ Read/write capacity: On-demand
 ```
 
 **Add GSI:**
+
 - MessageIdIndex:
   - Partition key: `messageId` (String)
   - Projection: All attributes
@@ -223,6 +238,7 @@ Read/write capacity: On-demand
 ```
 
 **Add GSI:**
+
 - ClassCodeIndex:
   - Partition key: `classCode` (String)
   - Sort key: `semester` (String)
@@ -336,6 +352,7 @@ echo "All tables created successfully!"
 ```
 
 Run with:
+
 ```bash
 chmod +x scripts/create-dynamodb-tables.sh
 ./scripts/create-dynamodb-tables.sh
@@ -353,7 +370,7 @@ Add these to your `.env.local` file:
 # AWS Configuration
 NEXT_PUBLIC_AWS_REGION=us-east-1
 NEXT_PUBLIC_AWS_ACCESS_KEY_ID=your_access_key_here
-NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY=your_secret_key_here
+NEXT_PUBLIC_APP_AWS_SECRET_ACCESS_KEY=your_secret_key_here
 
 # DynamoDB Table Names
 DYNAMODB_USERS_TABLE=PantherKolab-Users-dev
@@ -367,6 +384,7 @@ NEXT_PUBLIC_COGNITO_CLIENT_ID=your_client_id
 ```
 
 **⚠️ SECURITY WARNING:**
+
 - NEVER commit `.env.local` to git
 - Use IAM roles in production instead of access keys
 - Follow principle of least privilege for IAM permissions
@@ -400,47 +418,50 @@ Create a Post-Confirmation Lambda trigger that runs automatically after email ve
 **Location:** `backend/triggers/postConfirmation.ts`
 
 ```typescript
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
-import { PostConfirmationTriggerEvent } from 'aws-lambda'
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { PostConfirmationTriggerEvent } from "aws-lambda";
 
-const client = new DynamoDBClient({ region: process.env.AWS_REGION })
-const dynamoDb = DynamoDBDocumentClient.from(client)
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const dynamoDb = DynamoDBDocumentClient.from(client);
 
 export const handler = async (event: PostConfirmationTriggerEvent) => {
-  const { sub, email, given_name, family_name } = event.request.userAttributes
+  const { sub, email, given_name, family_name } = event.request.userAttributes;
 
   try {
-    await dynamoDb.send(new PutCommand({
-      TableName: process.env.USERS_TABLE_NAME!,
-      Item: {
-        userId: sub,
-        email: email,
-        firstName: given_name,
-        lastName: family_name || '',
-        fullName: `${given_name} ${family_name || ''}`.trim(),
-        emailVerified: true,
-        profilePicture: null,
-        major: null,
-        year: null,
-        bio: null,
-        interests: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    }))
+    await dynamoDb.send(
+      new PutCommand({
+        TableName: process.env.USERS_TABLE_NAME!,
+        Item: {
+          userId: sub,
+          email: email,
+          firstName: given_name,
+          lastName: family_name || "",
+          fullName: `${given_name} ${family_name || ""}`.trim(),
+          emailVerified: true,
+          profilePicture: null,
+          major: null,
+          year: null,
+          bio: null,
+          interests: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      })
+    );
 
-    console.log(`User profile created for ${email}`)
+    console.log(`User profile created for ${email}`);
   } catch (error) {
-    console.error('Error creating user profile:', error)
+    console.error("Error creating user profile:", error);
     // Don't throw - allow signup to complete even if DynamoDB fails
   }
 
-  return event
-}
+  return event;
+};
 ```
 
 **Deploy this Lambda:**
+
 1. Create Lambda function in AWS Console
 2. Attach to Cognito User Pool as Post-Confirmation trigger
 3. Give Lambda IAM permission to write to DynamoDB
@@ -451,10 +472,12 @@ export const handler = async (event: PostConfirmationTriggerEvent) => {
 Your current implementation in `src/app/api/auth/signup/route.ts` works but requires client to call the API after signup.
 
 **Pros:**
+
 - Simple to implement
 - No AWS Lambda deployment needed
 
 **Cons:**
+
 - Not automatic (client must remember to call)
 - Can fail silently
 - User exists in Cognito but not DynamoDB if client fails
@@ -468,46 +491,49 @@ Your current implementation in `src/app/api/auth/signup/route.ts` works but requ
 Create `scripts/test-dynamodb.ts`:
 
 ```typescript
-import { dynamoDb } from '../src/lib/dynamodb'
-import { PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
+import { dynamoDb } from "../src/lib/dynamodb";
+import { PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 
 async function testConnection() {
-  console.log('Testing DynamoDB connection...')
+  console.log("Testing DynamoDB connection...");
 
   const testItem = {
     TableName: process.env.DYNAMODB_USERS_TABLE!,
     Item: {
-      userId: 'test-user-123',
-      email: 'test@fiu.edu',
-      firstName: 'Test',
-      lastName: 'User',
-      fullName: 'Test User',
+      userId: "test-user-123",
+      email: "test@fiu.edu",
+      firstName: "Test",
+      lastName: "User",
+      fullName: "Test User",
       emailVerified: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }
-  }
+    },
+  };
 
   try {
     // Write test item
-    await dynamoDb.send(new PutCommand(testItem))
-    console.log('✅ Write successful')
+    await dynamoDb.send(new PutCommand(testItem));
+    console.log("✅ Write successful");
 
     // Read test item
-    const result = await dynamoDb.send(new GetCommand({
-      TableName: process.env.DYNAMODB_USERS_TABLE!,
-      Key: { userId: 'test-user-123' }
-    }))
-    console.log('✅ Read successful:', result.Item)
+    const result = await dynamoDb.send(
+      new GetCommand({
+        TableName: process.env.DYNAMODB_USERS_TABLE!,
+        Key: { userId: "test-user-123" },
+      })
+    );
+    console.log("✅ Read successful:", result.Item);
   } catch (error) {
-    console.error('❌ Test failed:', error)
+    console.error("❌ Test failed:", error);
   }
 }
 
-testConnection()
+testConnection();
 ```
 
 Run with:
+
 ```bash
 tsx scripts/test-dynamodb.ts
 ```
@@ -522,22 +548,22 @@ tsx scripts/test-dynamodb.ts
 ### 3. Test userService Methods
 
 ```typescript
-import { userService } from './src/services/userService'
+import { userService } from "./src/services/userService";
 
 // Get user
-const user = await userService.getUser('some-user-id')
-console.log(user)
+const user = await userService.getUser("some-user-id");
+console.log(user);
 
 // Update user
-await userService.updateUser('some-user-id', {
-  major: 'Computer Science',
-  year: 'Junior',
-  bio: 'CS student interested in AI'
-})
+await userService.updateUser("some-user-id", {
+  major: "Computer Science",
+  year: "Junior",
+  bio: "CS student interested in AI",
+});
 
 // Check existence
-const exists = await userService.userExists('some-user-id')
-console.log('User exists:', exists)
+const exists = await userService.userExists("some-user-id");
+console.log("User exists:", exists);
 ```
 
 ---
@@ -564,23 +590,26 @@ aws dynamodb list-tables --region us-east-1
 ```json
 {
   "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Action": [
-      "dynamodb:PutItem",
-      "dynamodb:GetItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:Query",
-      "dynamodb:Scan"
-    ],
-    "Resource": "arn:aws:dynamodb:us-east-1:*:table/PantherKolab-*"
-  }]
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:*:table/PantherKolab-*"
+    }
+  ]
 }
 ```
 
 ### Issue: User created in Cognito but not DynamoDB
 
 **Solution:**
+
 - Check Lambda trigger is attached and has correct permissions
 - Check CloudWatch logs for Lambda errors
 - Implement retry logic or fallback to API route

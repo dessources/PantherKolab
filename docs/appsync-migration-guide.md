@@ -169,12 +169,12 @@ User-Centric Channel Model (2 channels per user):
 
 ### Key Files Created/Modified
 
-| File | Purpose |
-|------|---------|
+| File                                       | Purpose                                      |
+| ------------------------------------------ | -------------------------------------------- |
 | `src/lib/appSync/appsync-server-client.ts` | Server-side publishing with Cognito ID token |
-| `src/lib/appSync/appsync-client.ts` | Client-side subscriptions using Amplify |
-| `src/lib/auth/api-auth.ts` | API route authentication helper |
-| `src/types/appsync-events.ts` | TypeScript event type definitions |
+| `src/lib/appSync/appsync-client.ts`        | Client-side subscriptions using Amplify      |
+| `src/lib/auth/api-auth.ts`                 | API route authentication helper              |
+| `src/types/appsync-events.ts`              | TypeScript event type definitions            |
 
 ### Server-Side Publishing (Final Code)
 
@@ -464,7 +464,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Call initiation error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 }
     );
   }
@@ -473,15 +475,15 @@ export async function POST(req: NextRequest) {
 
 ### All API Routes Updated
 
-| Route | Events Published |
-|-------|------------------|
-| `POST /api/calls/initiate` | `CALL_RINGING`, `INCOMING_CALL` |
-| `POST /api/calls/accept` | `CALL_CONNECTED` |
-| `POST /api/calls/reject` | `CALL_REJECTED` |
-| `POST /api/calls/cancel` | `CALL_CANCELLED` |
-| `POST /api/calls/end` | `CALL_ENDED` |
-| `POST /api/calls/leave` | `PARTICIPANT_LEFT` |
-| `POST /api/messages/send` | `MESSAGE_SENT` |
+| Route                       | Events Published                      |
+| --------------------------- | ------------------------------------- |
+| `POST /api/calls/initiate`  | `CALL_RINGING`, `INCOMING_CALL`       |
+| `POST /api/calls/accept`    | `CALL_CONNECTED`                      |
+| `POST /api/calls/reject`    | `CALL_REJECTED`                       |
+| `POST /api/calls/cancel`    | `CALL_CANCELLED`                      |
+| `POST /api/calls/end`       | `CALL_ENDED`                          |
+| `POST /api/calls/leave`     | `PARTICIPANT_LEFT`                    |
+| `POST /api/messages/send`   | `MESSAGE_SENT`                        |
 | `POST /api/messages/typing` | `USER_TYPING` / `USER_STOPPED_TYPING` |
 
 ---
@@ -512,11 +514,11 @@ export async function POST(req: NextRequest) {
 
 In the AppSync Events console, create these namespaces:
 
-| Namespace   | Purpose                          | Auth    | Notes                                          |
-| ----------- | -------------------------------- | ------- | ---------------------------------------------- |
-| `/chats/*`  | Messages + typing indicators     | Cognito | Each user subscribes to `/chats/{theirUserId}` |
-| `/users/*`  | Direct notifications (calls)     | Cognito | Incoming calls, call status updates            |
-| `/calls/*`  | Active call session events       | Cognito | Subscribed only during active call             |
+| Namespace  | Purpose                      | Auth    | Notes                                          |
+| ---------- | ---------------------------- | ------- | ---------------------------------------------- |
+| `/chats/*` | Messages + typing indicators | Cognito | Each user subscribes to `/chats/{theirUserId}` |
+| `/users/*` | Direct notifications (calls) | Cognito | Incoming calls, call status updates            |
+| `/calls/*` | Active call session events   | Cognito | Subscribed only during active call             |
 
 **Important:** With user-centric channels, messages are published to each participant's channel. For a 2-person chat, the server publishes to 2 channels. For a 10-person group, the server publishes to 10 channels.
 
@@ -554,17 +556,18 @@ If you prefer to have AppSync handle message persistence directly (reducing API 
 
 **Trade-offs:**
 
-| Aspect                   | API Route (Recommended)              | onPublish Handler (Alternative)      |
-| ------------------------ | ------------------------------------ | ------------------------------------ |
-| Persistence confirmation | Synchronous (before broadcast)       | Asynchronous (after broadcast)       |
-| Error handling           | Direct feedback to client            | Silent failures (requires monitoring)|
-| API route complexity     | Higher (DynamoDB + AppSync publish)  | Lower (AppSync only)                 |
-| Debugging                | Easier (single location)             | Harder (check CloudWatch logs)       |
-| Data consistency         | Guaranteed (save then broadcast)     | Eventual (broadcast then save)       |
+| Aspect                   | API Route (Recommended)             | onPublish Handler (Alternative)       |
+| ------------------------ | ----------------------------------- | ------------------------------------- |
+| Persistence confirmation | Synchronous (before broadcast)      | Asynchronous (after broadcast)        |
+| Error handling           | Direct feedback to client           | Silent failures (requires monitoring) |
+| API route complexity     | Higher (DynamoDB + AppSync publish) | Lower (AppSync only)                  |
+| Debugging                | Easier (single location)            | Harder (check CloudWatch logs)        |
+| Data consistency         | Guaranteed (save then broadcast)    | Eventual (broadcast then save)        |
 
 #### Setup Requirements
 
 1. **Create a DynamoDB Data Source in AppSync:**
+
    - Go to AppSync Console → Your API → Data Sources
    - Click "Create Data Source"
    - Name: `MessagesTable`
@@ -573,16 +576,14 @@ If you prefer to have AppSync handle message persistence directly (reducing API 
    - Create or use an existing IAM role with DynamoDB write permissions
 
 2. **IAM Role Permissions:**
+
    ```json
    {
      "Version": "2012-10-17",
      "Statement": [
        {
          "Effect": "Allow",
-         "Action": [
-           "dynamodb:PutItem",
-           "dynamodb:UpdateItem"
-         ],
+         "Action": ["dynamodb:PutItem", "dynamodb:UpdateItem"],
          "Resource": "arn:aws:dynamodb:us-east-1:YOUR_ACCOUNT:table/PantherKolab-Messages"
        }
      ]
@@ -596,25 +597,25 @@ If you prefer to have AppSync handle message persistence directly (reducing API 
 ```javascript
 // onPublish handler that persists MESSAGE_SENT events to DynamoDB
 // Uses AppSync's built-in DynamoDB utilities
-import * as ddb from '@aws-appsync/utils/dynamodb'
+import * as ddb from "@aws-appsync/utils/dynamodb";
 
 export const onPublish = {
   request(ctx) {
     // Get the first event from the batch
-    const event = ctx.events[0]
+    const event = ctx.events[0];
 
     // Parse the stringified event (AppSync Events require stringified payloads)
-    const payload = typeof event === 'string' ? JSON.parse(event) : event
+    const payload = typeof event === "string" ? JSON.parse(event) : event;
 
     // Only persist MESSAGE_SENT events to DynamoDB
     // Typing indicators, read receipts, etc. don't need persistence
-    if (payload.type !== 'MESSAGE_SENT') {
+    if (payload.type !== "MESSAGE_SENT") {
       // Return null to skip DynamoDB operation, event is still forwarded
-      return null
+      return null;
     }
 
-    const message = payload.data
-    const now = util.time.nowISO8601()
+    const message = payload.data;
+    const now = util.time.nowISO8601();
 
     // Build the DynamoDB item matching existing table schema
     // See src/services/messageService.ts for field definitions
@@ -626,7 +627,7 @@ export const onPublish = {
       // Message fields
       messageId: message.messageId,
       senderId: message.senderId,
-      type: message.type || 'TEXT',
+      type: message.type || "TEXT",
       content: message.content,
 
       // Optional media fields
@@ -643,7 +644,7 @@ export const onPublish = {
 
       // Metadata
       createdAt: now,
-    }
+    };
 
     // Write to DynamoDB using AppSync's ddb utilities
     return ddb.put({
@@ -652,20 +653,20 @@ export const onPublish = {
         timestamp: item.timestamp,
       },
       item,
-    })
+    });
   },
 
   response(ctx) {
     // Add server timestamp to all events before broadcasting
-    const now = util.time.nowISO8601()
+    const now = util.time.nowISO8601();
 
-    return ctx.events.map(event => {
-      const parsed = typeof event === 'string' ? JSON.parse(event) : event
-      parsed.serverTimestamp = now
-      return JSON.stringify(parsed)
-    })
-  }
-}
+    return ctx.events.map((event) => {
+      const parsed = typeof event === "string" ? JSON.parse(event) : event;
+      parsed.serverTimestamp = now;
+      return JSON.stringify(parsed);
+    });
+  },
+};
 ```
 
 #### Important Considerations
@@ -675,12 +676,13 @@ export const onPublish = {
 2. **Error Handling:** If the DynamoDB write fails, the event is still broadcast to subscribers. Monitor CloudWatch logs for persistence failures.
 
 3. **Conditional Writes:** You can add `condition` to `ddb.put()` to prevent duplicate writes:
+
    ```javascript
    return ddb.put({
      key: { conversationId, timestamp },
      item,
-     condition: { conversationId: { attributeExists: false } }
-   })
+     condition: { conversationId: { attributeExists: false } },
+   });
    ```
 
 4. **If using this approach**, you should modify `src/services/messageService.ts` to remove the DynamoDB write from `sendMessage()` since AppSync will handle it.
@@ -700,10 +702,7 @@ export function onSubscribe(ctx) {
 
   // User-centric channels: /chats/{userId}, /users/{userId}
   // Users can ONLY subscribe to their own channels
-  if (
-    channel.startsWith("/chats/") ||
-    channel.startsWith("/users/")
-  ) {
+  if (channel.startsWith("/chats/") || channel.startsWith("/users/")) {
     const channelUserId = channel.split("/")[2];
     if (channelUserId !== userId) {
       util.error("Unauthorized: Cannot subscribe to other users' channels");
@@ -751,6 +750,7 @@ npm install @aws-amplify/api
 **IMPORTANT:** The Amplify configuration for AppSync Events is handled in the client-side Amplify initialization. Ensure your Amplify config includes the Events API configuration.
 
 The key environment variable needed:
+
 ```bash
 NEXT_PUBLIC_APPSYNC_HTTP_ENDPOINT=https://xxx.appsync-api.us-east-1.amazonaws.com/event
 ```
@@ -767,6 +767,7 @@ See the [Final Implementation](#final-implementation) section above for the comp
 ### Step 2.4: Add Event Type Definitions
 
 The event type definitions are in `src/types/appsync-events.ts`. Key additions include:
+
 - `CallCancelledEvent` - for when caller cancels before answer
 - `ChatEvent` union type - combines messages and typing events (sent to `/chats/{userId}`)
 - Generic `AppSyncEvent<T>` type for flexible typing
@@ -788,6 +789,7 @@ The auth utility is documented in the [Final Implementation](#api-route-authenti
 **File: `src/app/api/messages/send/route.ts`**
 
 Key changes from the original plan:
+
 - Import `publishToUsers` from `@/lib/appSync/appsync-server-client` (not appsync-client)
 - Pass `auth.idToken` as the 4th parameter to `publishToUsers`
 
@@ -872,16 +874,17 @@ import { getAuthenticatedUser } from "@/lib/auth/api-auth";
 // Publish to all participants
 await publishToUsers(
   participantIds,
-  "/calls",  // Channel prefix
+  "/calls", // Channel prefix
   {
     type: "CALL_CONNECTED",
     data: connectionData,
   },
-  auth.idToken  // Cognito ID token
+  auth.idToken // Cognito ID token
 );
 ```
 
 **Routes implemented:**
+
 - `POST /api/calls/initiate` - Create call, notify with `CALL_RINGING` and `INCOMING_CALL`
 - `POST /api/calls/accept` - Create Chime meeting, notify with `CALL_CONNECTED`
 - `POST /api/calls/reject` - Mark rejected, notify with `CALL_REJECTED`
@@ -898,6 +901,7 @@ The hook uses `subscribeToUserCalls` from `@/lib/appSync/appsync-client` to rece
 **Key hook file:** `src/hooks/useCalls.ts`
 
 The hook:
+
 - Subscribes to `/calls/{userId}` using `subscribeToUserCalls`
 - Handles all call event types via a switch statement
 - Provides methods: `initiateCall`, `acceptCall`, `rejectCall`, `cancelCall`, `leaveCall`, `endCall`
@@ -985,7 +989,7 @@ NEXT_PUBLIC_APPSYNC_REALTIME_ENDPOINT=wss://xxx.appsync-realtime-api.us-east-1.a
 
 # AWS (for API routes)
 AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
+APP_AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 
 # DynamoDB Tables
@@ -1184,15 +1188,15 @@ This allows quick switching if needed.
 
 ### What Changed
 
-| Before | After |
-|--------|-------|
-| Socket.IO server (`server.ts`) | Next.js API routes |
-| `@/lib/socket/callManager.ts` | `@/lib/chime/callManager.ts` |
-| `@/lib/socket-client.ts` | `@/lib/appSync/appsync-client.ts` |
-| N/A | `@/lib/appSync/appsync-server-client.ts` |
-| N/A | `@/lib/auth/api-auth.ts` |
-| Per-conversation channels | User-centric channels (`/calls/{userId}`, `/chats/{userId}`) |
-| Access token auth | ID token auth for AppSync |
+| Before                         | After                                                        |
+| ------------------------------ | ------------------------------------------------------------ |
+| Socket.IO server (`server.ts`) | Next.js API routes                                           |
+| `@/lib/socket/callManager.ts`  | `@/lib/chime/callManager.ts`                                 |
+| `@/lib/socket-client.ts`       | `@/lib/appSync/appsync-client.ts`                            |
+| N/A                            | `@/lib/appSync/appsync-server-client.ts`                     |
+| N/A                            | `@/lib/auth/api-auth.ts`                                     |
+| Per-conversation channels      | User-centric channels (`/calls/{userId}`, `/chats/{userId}`) |
+| Access token auth              | ID token auth for AppSync                                    |
 
 ### Key Learnings
 

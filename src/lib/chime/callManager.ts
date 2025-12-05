@@ -11,8 +11,8 @@ import type { CallType, Call } from "@/types/database";
 const chime = new ChimeSDKMeetings({
   region: process.env.AWS_CHIME_REGION || process.env.AWS_REGION || "us-east-1",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.APP_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.APP_AWS_SECRET_ACCESS_KEY!,
   },
 });
 
@@ -133,7 +133,7 @@ export const callManager = {
       if (!attendeeResponse.Attendee) {
         throw new Error("Failed to create Chime attendee for recipient");
       }
-      
+
       // 3. Update recipient's participant status
       await callService.updateParticipantStatus(
         data.sessionId,
@@ -211,9 +211,7 @@ export const callManager = {
     // Get remaining active participants (not LEFT or REJECTED) excluding the leaving user
     const remainingActiveParticipants = call.participants.filter(
       (p) =>
-        p.userId !== userId &&
-        p.status !== "LEFT" &&
-        p.status !== "REJECTED"
+        p.userId !== userId && p.status !== "LEFT" && p.status !== "REJECTED"
     );
 
     // For GROUP calls, if the initiator is leaving, they must specify a new owner
@@ -274,9 +272,7 @@ export const callManager = {
 
     // Can only cancel calls that are still ringing
     if (call.status !== "RINGING") {
-      throw new Error(
-        `Cannot cancel call. Current status: ${call.status}`
-      );
+      throw new Error(`Cannot cancel call. Current status: ${call.status}`);
     }
 
     // Update call status to CANCELLED
