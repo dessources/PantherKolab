@@ -5,6 +5,7 @@ import { Search, SquarePen, User, Users } from "lucide-react";
 import NewConversationDropdown from "./NewConversationDropdown";
 import { type SearchableUser } from "./utils/userSearch";
 import Image from "next/image";
+import Link from "next/link";
 
 interface Conversation {
   id: string;
@@ -67,7 +68,12 @@ export default function ConversationList({
     <div className="w-[400px] bg-white border-r border-gray-200 flex flex-col">
       {/* PantherKolab Header */}
       <div className="px-6 pt-8 pb-12">
-        <h1 className="text-3xl font-bold text-gray-900">PantherKolab</h1>
+        <Link href="/dashboard" className="inline-block">
+          <h1 className="text-3xl font-bold cursor-pointer hover:opacity-80 transition-opacity">
+            <span className="text-[#FFB300]">Panther</span>
+            <span className="text-[#1447E6]">Kolab</span>
+          </h1>
+        </Link>
       </div>
 
       {/* Search Bar */}

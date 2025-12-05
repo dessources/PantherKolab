@@ -217,8 +217,12 @@ export function useChimeMeeting({
     }
     setIsMuted(shouldMute);
     soundEffects.play("mic-toggle");
+<<<<<<< HEAD
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     process.env.NODE_ENV !== "production" && console.log(shouldMute ? "🔇 Muted" : "🔊 Unmuted");
+=======
+    console.log(shouldMute ? "🔇 Muted" : "🔊 Unmuted");
+>>>>>>> ai-summary
   }, [isMuted]);
 
   // Toggle video
@@ -231,14 +235,22 @@ export function useChimeMeeting({
       meetingSession.audioVideo.stopLocalVideoTile();
       setIsVideoEnabled(false);
       soundEffects.play("camera-toggle");
+<<<<<<< HEAD
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       process.env.NODE_ENV !== "production" && console.log("📹 Video disabled");
+=======
+      console.log("📹 Video disabled");
+>>>>>>> ai-summary
     } else {
       meetingSession.audioVideo.startLocalVideoTile();
       setIsVideoEnabled(true);
       soundEffects.play("camera-toggle");
+<<<<<<< HEAD
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       process.env.NODE_ENV !== "production" && console.log("📹 Video enabled");
+=======
+      console.log("📹 Video enabled");
+>>>>>>> ai-summary
     }
   }, [isVideoEnabled]);
 

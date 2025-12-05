@@ -52,7 +52,8 @@ export const useChat = (currentUserId: string) => {
   // Callbacks for useCalls hook
   const handleCallConnected = useCallback((data: MeetingData) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" && console.log("Call connected!", data);
+    process.env.NODE_ENV !== "production" &&
+      console.log("Call connected!", data);
     // When a call connects, we should hide any outgoing call modal
     setShowOutgoingCall(false);
     setIsMeetingActive(true); // Show the MeetingView
@@ -61,7 +62,8 @@ export const useChat = (currentUserId: string) => {
 
   const handleCallEnded = useCallback((sessionId: string, endedBy: string) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" && console.log(`Call ${sessionId} ended by ${endedBy}`);
+    process.env.NODE_ENV !== "production" &&
+      console.log(`Call ${sessionId} ended by ${endedBy}`);
     setShowOutgoingCall(false);
     setIsMeetingActive(false); // Hide the MeetingView
     setMeetingData(null);
@@ -70,7 +72,8 @@ export const useChat = (currentUserId: string) => {
 
   const handleCallRejected = useCallback((sessionId: string) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" && console.log("Call rejected:", sessionId);
+    process.env.NODE_ENV !== "production" &&
+      console.log("Call rejected:", sessionId);
     setShowOutgoingCall(false);
     toast.info("Call was declined");
   }, []);
@@ -78,7 +81,8 @@ export const useChat = (currentUserId: string) => {
   const handleCallCancelled = useCallback(
     (sessionId: string, cancelledBy: string) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
+      process.env.NODE_ENV !== "production" &&
+        console.log(`Call ${sessionId} cancelled by ${cancelledBy}`);
       setShowOutgoingCall(false);
       toast.info("Call was cancelled");
     },
@@ -88,9 +92,10 @@ export const useChat = (currentUserId: string) => {
   const handleParticipantLeft = useCallback(
     (sessionId: string, userId: string, newOwnerId?: string) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" && console.log(
-        `Participant ${userId} left call ${sessionId}, new owner: ${newOwnerId}`
-      );
+      process.env.NODE_ENV !== "production" &&
+        console.log(
+          `Participant ${userId} left call ${sessionId}, new owner: ${newOwnerId}`
+        );
       // Handle UI updates for participant leaving if necessary
     },
     []
@@ -212,8 +217,9 @@ export const useChat = (currentUserId: string) => {
       avatar: null,
     };
 
-    const optimisticUIConversation =
-      convertToUIConversation(optimisticConversation);
+    const optimisticUIConversation = convertToUIConversation(
+      optimisticConversation
+    );
 
     // Optimistically update UI
     setConversations((prev) => [optimisticConversation, ...prev]);
@@ -310,8 +316,9 @@ export const useChat = (currentUserId: string) => {
       avatar: null, // Placeholder for group avatar
     };
 
-    const optimisticUIConversation =
-      convertToUIConversation(optimisticConversation);
+    const optimisticUIConversation = convertToUIConversation(
+      optimisticConversation
+    );
 
     // Optimistically update UI
     setConversations((prev) => [optimisticConversation, ...prev]);
@@ -338,9 +345,7 @@ export const useChat = (currentUserId: string) => {
       // Replace optimistic conversation with actual one
       setConversations((prev) =>
         prev.map((conv) =>
-          conv.conversationId === tempConversationId
-            ? actualConversation
-            : conv
+          conv.conversationId === tempConversationId ? actualConversation : conv
         )
       );
       setUiConversations((prev) =>
