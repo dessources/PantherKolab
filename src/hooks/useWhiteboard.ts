@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Editor, loadSnapshot } from "tldraw";
+import { toast } from "sonner";
 import { subscribeToUserWhiteboards } from "@/lib/appSync/appsync-client";
 import {
   AppSyncEvent,
@@ -22,10 +23,10 @@ interface UseWhiteboardOptions {
   whiteboardId: string | null;
   currentUserId: string;
   editor: Editor | null;
+  isReadonly: boolean;
 }
 
 interface UseWhiteboardReturn {
-  isConnected: boolean;
   activeUsers: string[]; // Placeholder for user IDs
   syncChanges: (snapshot: string) => void;
 }
@@ -34,13 +35,15 @@ export function useWhiteboard({
   whiteboardId,
   currentUserId,
   editor,
+  isReadonly,
 }: UseWhiteboardOptions): UseWhiteboardReturn {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(true); // Assume connected initially
   const [activeUsers, setActiveUsers] = useState<string[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
   const subscriptionRef = useRef<{ close: () => void } | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use refs to avoid stale closures in callbacks
   const editorRef = useRef(editor);
@@ -133,36 +136,66 @@ export function useWhiteboard({
   }, [currentUserId, handleWhiteboardEvent]);
 
   /**
-   * Debounced function to send snapshot changes to the backend API.
+   * Effect to handle connection status changes and show toast on prolonged disconnection.
    */
-  const syncChanges = useCallback((snapshot: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+  useEffect(() => {
+    if (isConnected) {
+      // If connection is restored, clear any pending disconnection timer.
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
+      }
+    } else {
+      // When disconnected, start a timer.
+      disconnectTimerRef.current = setTimeout(() => {
+        // If the timer runs to completion, it means we've been disconnected for 5 seconds.
+        toast.error("Whiteboard disconnected. Changes will not be saved.", {
+          duration: 10000, // Keep toast visible for 10 seconds
+        });
+      }, 5000); // 5-second threshold
     }
 
-    debounceTimerRef.current = setTimeout(async () => {
-      if (!whiteboardIdRef.current) return;
-
-      logDebug(`Syncing changes for whiteboard ${whiteboardIdRef.current}`);
-      try {
-        const response = await fetch("/api/whiteboards/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            whiteboardId: whiteboardIdRef.current,
-            snapshot,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to sync whiteboard changes");
-        }
-      } catch (err) {
-        console.error("Error syncing whiteboard:", err);
-        // Optionally set an error state to show in the UI
+    return () => {
+      // Cleanup the timer on unmount or if isConnected changes again.
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
       }
-    }, 200); // Debounce interval of 2 seconds
-  }, []);
+    };
+  }, [isConnected]);
 
-  return { isConnected, activeUsers, syncChanges };
+  /**
+   * Debounced function to send snapshot changes to the backend API.
+   */
+  const syncChanges = useCallback(
+    (snapshot: string) => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(async () => {
+        if (!whiteboardIdRef.current || isReadonly) return;
+
+        logDebug(`Syncing changes for whiteboard ${whiteboardIdRef.current}`);
+        try {
+          const response = await fetch("/api/whiteboards/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              whiteboardId: whiteboardIdRef.current,
+              snapshot,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to  sync  whiteboard changes");
+          }
+        } catch (err) {
+          console.error("Error syncing whiteboard:", err);
+          // Optionally set an error state to show in the UI
+        }
+      }, 200); // Debounce interval of x seconds
+    },
+    [isReadonly]
+  );
+
+  return { activeUsers, syncChanges };
 }

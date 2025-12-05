@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { WhiteboardCanvas } from "@/components/whiteboard/WhiteboardCanvas";
 import { ExportDialog } from "@/components/whiteboard/ExportDialog";
+import { Download } from "lucide-react";
 import { Whiteboard } from "@/types/database";
 import { useAuth } from "@/components/contexts/AuthContext"; // Assuming an AuthContext exists
 
@@ -59,14 +60,14 @@ export default function WhiteboardPage() {
   }
 
   const isReadOnly = whiteboard.createdBy !== authUser.userId;
-
+  console.log("isREadonly:", isReadOnly, whiteboard.createdBy, authUser.userId);
   return (
     <>
       <WhiteboardCanvas
         whiteboardId={whiteboardId}
         currentUserId={authUser.userId}
         initialSnapshot={whiteboard.snapshot || undefined}
-        isReadOnly={isReadOnly}
+        isReadonly={isReadOnly}
       >
         {showExportDialog && (
           <ExportDialog
@@ -76,23 +77,14 @@ export default function WhiteboardPage() {
         )}
       </WhiteboardCanvas>
 
-      {/* Button to trigger the export dialog */}
+      {/* Responsive Export Button */}
       <button
         onClick={() => setShowExportDialog(true)}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          zIndex: 1000,
-          padding: '10px 20px',
-          borderRadius: '8px',
-          border: 'none',
-          backgroundColor: '#0066CC',
-          color: 'white',
-          cursor: 'pointer'
-        }}
+        className="fixed bottom-5 right-5 z-[1000] flex items-center justify-center h-12 w-12 md:w-auto md:px-4 bg-[#FFB300] text-black rounded-full md:rounded-lg shadow-lg hover:bg-[#FFA000] transition-colors"
+        aria-label="Export whiteboard"
       >
-        Export
+        <Download size={20} />
+        <span className="hidden md:inline ml-2 font-semibold">Export</span>
       </button>
     </>
   );

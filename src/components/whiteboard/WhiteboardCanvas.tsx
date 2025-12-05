@@ -23,7 +23,7 @@ interface WhiteboardCanvasProps {
   whiteboardId: string;
   currentUserId: string;
   initialSnapshot?: string;
-  isReadOnly?: boolean;
+  isReadonly: boolean;
 }
 
 /**
@@ -33,13 +33,14 @@ function EditorWithSync({
   whiteboardId,
   currentUserId,
   initialSnapshot,
-  isReadOnly = false,
+  isReadonly,
 }: WhiteboardCanvasProps) {
   const editor = useEditor();
-  const { isConnected, syncChanges } = useWhiteboard({
+  const { syncChanges } = useWhiteboard({
     whiteboardId,
     currentUserId,
     editor,
+    isReadonly,
   });
 
   useEffect(() => {
@@ -71,32 +72,15 @@ function EditorWithSync({
     return () => {
       cleanup();
     };
-  }, [editor, initialSnapshot, syncChanges]);
+  }, [currentUserId, editor, initialSnapshot, syncChanges]);
 
-  return (
-    <>
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          zIndex: 999,
-          padding: "4px 8px",
-          borderRadius: "5px",
-          backgroundColor: isConnected ? "#2E7D32" : "#C62828",
-          color: "white",
-          fontSize: "12px",
-        }}
-      >
-        {isConnected ? "Connected" : "Disconnected"}
-      </div>
-    </>
-  );
+  return null; // This component no longer renders any UI itself
 }
 
-export function WhiteboardCanvas(
-  props: WhiteboardCanvasProps & { children?: React.ReactNode }
-) {
+export function WhiteboardCanvas({
+  ...props
+}: WhiteboardCanvasProps & { children?: React.ReactNode }) {
+  console.log("isREadonly:", props.isReadonly, props.currentUserId);
   return (
     <div style={{ position: "fixed", inset: 0 }}>
       <TldrawComponent
@@ -105,7 +89,10 @@ export function WhiteboardCanvas(
         key={props.whiteboardId}
         persistenceKey={`tldraw_${props.whiteboardId}`}
         autoFocus
-        // readOnly={props.isReadOnly}
+        onMount={(editor) => {
+          editor.updateInstanceState({ isReadonly: props.isReadonly });
+        }}
+        // readOnly ={props.isReadonly}
       >
         <EditorWithSync {...props} />
         {props.children}
