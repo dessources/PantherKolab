@@ -1,15 +1,12 @@
 "use client";
 
-import {
-  useEditor,
-  Tldraw,
-  TLStoreWithStatus,
-  getSnapshot as toSnapshot,
-} from "tldraw";
+import { useEditor, getSnapshot as toSnapshot } from "tldraw";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
 import "tldraw/tldraw.css"; // Import tldraw styles
+import styles from "./WhiteboardCanvas.module.css";
+import CustomStylePanel from "./CustomStylePanel";
 
 // Lazy load the Tldraw component to prevent SSR issues and reduce initial bundle size.
 const TldrawComponent = dynamic(
@@ -84,6 +81,8 @@ export function WhiteboardCanvas({
   return (
     <div style={{ position: "fixed", inset: 0 }}>
       <TldrawComponent
+        components={{ StylePanel: CustomStylePanel }}
+        className={styles.padded_tldraw}
         // Passing a unique key based on whiteboardId ensures that tldraw
         // remounts and gets a fresh state when switching between different whiteboards.
         key={props.whiteboardId}
@@ -92,7 +91,6 @@ export function WhiteboardCanvas({
         onMount={(editor) => {
           editor.updateInstanceState({ isReadonly: props.isReadonly });
         }}
-        // readOnly ={props.isReadonly}
       >
         <EditorWithSync {...props} />
         {props.children}

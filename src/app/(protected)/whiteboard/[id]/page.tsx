@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { WhiteboardCanvas } from "@/components/whiteboard/WhiteboardCanvas";
 import { ExportDialog } from "@/components/whiteboard/ExportDialog";
-import { Download } from "lucide-react";
+import { Download, X } from "lucide-react";
 import { Whiteboard } from "@/types/database";
 import { useAuth } from "@/components/contexts/AuthContext"; // Assuming an AuthContext exists
-
+import { useRouter } from "next/navigation";
 export default function WhiteboardPage() {
   const params = useParams();
+  const router = useRouter();
   const { user: authUser } = useAuth(); // Assuming useAuth hook provides the user object
   const whiteboardId = params.id as string;
 
@@ -76,7 +77,14 @@ export default function WhiteboardPage() {
           />
         )}
       </WhiteboardCanvas>
-
+      {/* Exit Button */}
+      <button
+        onClick={() => router.back()}
+        className="fixed top-3 right-3 z-[1000] flex items-center justify-center h-10 w-10 bg-gray-200 text-gray-800 rounded-full shadow-lg hover:bg-gray-300 transition-colors"
+        aria-label="Exit whiteboard"
+      >
+        <X size={20} />
+      </button>
       {/* Responsive Export Button */}
       <button
         onClick={() => setShowExportDialog(true)}
