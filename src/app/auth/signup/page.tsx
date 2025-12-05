@@ -106,7 +106,7 @@ export default function SignUp() {
 
     setIsLoading(true);
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV != "production" && console.log("Form data:", formData);
+    process.env.NODE_ENV !== "production" && console.log("Form data:", formData);
 
     const { firstName, lastName, email, password } = formData;
     const params: SignUpParams = {

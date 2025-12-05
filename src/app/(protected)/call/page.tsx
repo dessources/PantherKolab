@@ -138,7 +138,7 @@ export default function CallPage() {
           participantNames={{}} // Empty map for standalone calls - will display userIds
           onEndCall={handleEndCall}
           onLeaveCall={handleLeaveCall}
-          onSettingsClick={() => alert("Settings clicked")}
+          onSettingsClick={() => {}}
         />
       )}
     </div>

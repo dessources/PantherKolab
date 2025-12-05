@@ -26,9 +26,10 @@ export default function TestProfilePage() {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
 
-      process.env.NODE_ENV != "production" && console.log("Token:", token);
-      process.env.NODE_ENV != "production" &&
-        console.log("User ID:", user.userId);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log("Token:", token);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log("User ID:", user.userId);
 
       if (!token) {
         setError("No token found");

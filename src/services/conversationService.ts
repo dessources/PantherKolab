@@ -46,7 +46,8 @@ export const conversationService = {
       avatar: input.avatar || null,
     };
 
-    console.log("Creating conversation:", conversation);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Creating conversation:", conversation);
 
     await dynamoDb.send(
       new PutCommand({
@@ -54,13 +55,15 @@ export const conversationService = {
         Item: conversation,
       })
     );
-    console.log("Conversation successfully saved to DynamoDB");
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Conversation successfully saved to DynamoDB");
 
     return conversation;
   },
 
   async getConversation(conversationId: string): Promise<Conversation | null> {
-    console.log("Fetching conversation with ID:", conversationId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Fetching conversation with ID:", conversationId);
 
     const result = await dynamoDb.send(
       new GetCommand({
@@ -69,13 +72,15 @@ export const conversationService = {
       })
     );
 
-    console.log("Fetched conversation:", result.Item);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Fetched conversation:", result.Item);
 
     return (result.Item as Conversation) || null;
   },
 
   async listConversations(userId: string): Promise<ConversationWithNames[]> {
-    console.log("Listing conversations for userId:", userId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Listing conversations for userId:", userId);
 
     const result = await dynamoDb.send(
       new ScanCommand({
@@ -94,7 +99,8 @@ export const conversationService = {
       userId
     );
 
-    console.log(
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(
       "Total conversations found:",
       enrichedConversations.length || 0
     );
@@ -165,7 +171,8 @@ export const conversationService = {
     conversationId: string,
     timestamp: string
   ): Promise<void> {
-    console.log(
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(
       "Updating last message for conversation:",
       conversationId,
       "to",
@@ -184,7 +191,8 @@ export const conversationService = {
       })
     );
 
-    console.log("Last message updated successfully");
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Last message updated successfully");
   },
 
   async findOrCreateDM(
@@ -192,7 +200,8 @@ export const conversationService = {
     userId2: string,
     userName: string
   ): Promise<Conversation> {
-    console.log("Finding or creating DM between:", userId1, "and", userId2);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Finding or creating DM between:", userId1, "and", userId2);
 
     // Create a deterministic conversationId for DMs
     const sortedIds = [userId1, userId2].sort();
@@ -202,12 +211,14 @@ export const conversationService = {
     const existingDM = await this.getConversation(dmConversationId);
 
     if (existingDM) {
-      console.log("Found existing DM:", existingDM.conversationId);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" && console.log("Found existing DM:", existingDM.conversationId);
       return existingDM;
     }
 
     // 2. Create new DM conversation if it doesn't exist
-    console.log("Creating new DM conversation with deterministic ID");
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log("Creating new DM conversation with deterministic ID");
     const newConversation = await this.createConversation(
       {
         type: "DM",
@@ -226,7 +237,8 @@ export const conversationService = {
     participantIds: string[],
     createdBy: string
   ): Promise<Conversation> {
-    console.log(`Creating group conversation "${name}" by ${createdBy}`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    process.env.NODE_ENV !== "production" && console.log(`Creating group conversation "${name}" by ${createdBy}`);
 
     // Ensure the creator is included in the participants list
     const finalParticipants = Array.from(

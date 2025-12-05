@@ -5,6 +5,7 @@ import { Geist, Geist_Mono, Bitter, Fira_Code } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/contexts/AuthContext";
 import { ConfigureAmplifyClientSide } from "@/lib/amplify/amplify-config";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,18 @@ export default function RootLayout({
       >
         <ConfigureAmplifyClientSide />
         <AuthProvider>{children}</AuthProvider>
+        <Toaster
+          position="top-right"
+          theme="light"
+          toastOptions={{
+            style: {
+              background: '#ffffff',
+              color: '#1f2937',
+              border: '1px solid #e5e7eb',
+            },
+            className: 'sonner-toast',
+          }}
+        />
       </body>
     </html>
   );

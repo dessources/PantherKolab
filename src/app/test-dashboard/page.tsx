@@ -139,7 +139,8 @@ export default function Dashboard() {
 
   // Event Handlers
   const handleConversationClick = (conversationId: string) => {
-    router.push(`/test-chat?conversationId=${conversationId}`);
+    // router.push(`/chat?conversationId=${conversationId}`);
+    router.push(`/chat`);
   };
 
   const handleCreateGroup = () => {
@@ -166,11 +167,14 @@ export default function Dashboard() {
   };
 
   const handleViewFullChat = (conversationId: string) => {
-    router.push(`/test-chat?conversationId=${conversationId}`);
+    //router.push(`/test-chat?conversationId=${conversationId}`);
+    router.push(`/chat?conversationId`);
   };
 
   const handleDismissConversation = (conversationId: string) => {
-    alert(`Dismiss conversation ${conversationId} - Feature not yet implemented`);
+    alert(
+      `Dismiss conversation ${conversationId} - Feature not yet implemented`
+    );
   };
 
   const handleJoinGroup = (groupId: string) => {
@@ -200,14 +204,25 @@ export default function Dashboard() {
     );
   }
 
-  const { user, groups, directMessages, activeSessions, activity, missedConversations, suggestions, schedule, deadlines } = data;
+  const {
+    user,
+    groups,
+    directMessages,
+    activeSessions,
+    activity,
+    missedConversations,
+    suggestions,
+    schedule,
+    deadlines,
+  } = data;
 
   // Filter for sidebar based on search
-  const filteredGroups = groups.filter(g =>
-    g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    g.code.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredGroups = groups.filter(
+    (g) =>
+      g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      g.code.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const filteredDMs = directMessages.filter(dm =>
+  const filteredDMs = directMessages.filter((dm) =>
     dm.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

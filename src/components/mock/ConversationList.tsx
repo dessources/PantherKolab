@@ -5,12 +5,12 @@
  * Will be replaced by frontend team's implementation
  */
 
-'use client';
+"use client";
 
 export interface MockConversation {
   conversationId: string;
   name: string;
-  type: 'DM' | 'GROUP';
+  type: "DM" | "GROUP";
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount?: number;
@@ -32,20 +32,26 @@ export function ConversationList({
   onCreateConversation,
 }: ConversationListProps) {
   const formatTime = (timestamp?: string) => {
-    if (!timestamp) return '';
+    if (!timestamp) return "";
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
     if (days === 0) {
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } else if (days === 1) {
-      return 'Yesterday';
+      return "Yesterday";
     } else if (days < 7) {
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
+      return date.toLocaleDateString("en-US", { weekday: "short" });
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
     }
   };
 
@@ -65,7 +71,11 @@ export function ConversationList({
             stroke="currentColor"
             className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+            />
           </svg>
           <input
             type="text"
@@ -101,18 +111,22 @@ export function ConversationList({
         ) : (
           conversations.map((conversation) => {
             const initials = conversation.name
-              .split(' ')
-              .map(word => word[0])
-              .join('')
+              .split(" ")
+              .map((word) => word[0])
+              .join("")
               .toUpperCase()
               .substring(0, 3);
 
             return (
               <button
                 key={conversation.conversationId}
-                onClick={() => onSelectConversation(conversation.conversationId)}
+                onClick={() =>
+                  onSelectConversation(conversation.conversationId)
+                }
                 className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors ${
-                  activeConversationId === conversation.conversationId ? 'bg-blue-50' : ''
+                  activeConversationId === conversation.conversationId
+                    ? "bg-blue-50"
+                    : ""
                 }`}
               >
                 {/* Avatar */}
@@ -124,9 +138,11 @@ export function ConversationList({
 
                 {/* Content */}
                 <div className="flex-1 min-w-0 text-left">
-                  <h3 className="font-bold text-gray-900 text-sm mb-0.5">{conversation.name}</h3>
+                  <h3 className="font-bold text-gray-900 text-sm mb-0.5">
+                    {conversation.name}
+                  </h3>
                   <p className="text-xs text-gray-600 truncate">
-                    {conversation.lastMessage || 'No messages yet'}
+                    {conversation.lastMessage || ""}
                   </p>
                 </div>
               </button>

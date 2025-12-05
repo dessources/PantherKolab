@@ -20,6 +20,7 @@ import type {
   UserTypingEvent,
   UserStoppedTypingEvent,
 } from "@/types/appsync-events";
+import { soundEffects } from "@/lib/sounds/soundEffects";
 
 interface UseMessagesOptions {
   conversationId: string | null;
@@ -130,7 +131,7 @@ export function useMessages({
           : Array.isArray(data)
           ? data
           : [];
-        
+
         const sorted = sortMessages(fetchedMessages);
 
         // Update cache
@@ -174,6 +175,7 @@ export function useMessages({
         );
 
         let newCache: Message[];
+        let isNewMessage = false;
         if (existingIndex >= 0) {
           // Replace optimistic message with real one
           const oldId = cached[existingIndex].messageId;
@@ -182,6 +184,7 @@ export function useMessages({
           newCache = [...cached];
         } else {
           newCache = [...cached, newMessage];
+          isNewMessage = true;
         }
 
         const sortedCache = sortMessages(newCache);
@@ -190,6 +193,11 @@ export function useMessages({
         // Update state if this is the current conversation
         if (convId === conversationIdRef.current) {
           setMessages(sortedCache);
+
+          // Play sound for received messages (not sent by current user and not optimistic replacements)
+          if (isNewMessage && newMessage.senderId !== currentUserId) {
+            setTimeout(() => soundEffects.play("message-received"), 600);
+          }
         }
       }
 
@@ -287,12 +295,12 @@ export function useMessages({
         );
 
         setIsConnected(true);
-        console.log(`[useMessages] Subscribed to /chats/${currentUserId}`);
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        process.env.NODE_ENV !== "production" &&
+          console.log(`[useMessages] Subscribed to /chats/${currentUserId}`);
       } catch (err) {
         console.error("[useMessages] Failed to subscribe:", err);
-        setError(
-          err instanceof Error ? err : new Error("Subscription failed")
-        );
+        setError(err instanceof Error ? err : new Error("Subscription failed"));
         setIsConnected(false);
       }
     };
@@ -338,7 +346,9 @@ export function useMessages({
       }
 
       // Create optimistic message
-      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+      const tempId = `temp-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 11)}`;
       const optimisticMessage: Message = {
         conversationId,
         timestamp: new Date().toISOString(),
@@ -360,7 +370,7 @@ export function useMessages({
       // Add to cache and state immediately
       const cached = messageCache.get(conversationId) || [];
       const newCache = sortMessages([...cached, optimisticMessage]);
-      
+
       messageCache.set(conversationId, newCache);
       setMessages(newCache);
       optimisticMessageIds.current.add(tempId);

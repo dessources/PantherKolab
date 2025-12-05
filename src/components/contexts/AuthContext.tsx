@@ -101,10 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (response.ok) {
-        console.log("[Auth] User profile created successfully");
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        process.env.NODE_ENV !== "production" && console.log("[Auth] User profile created successfully");
       } else if (response.status === 409) {
         // Profile already exists - that's fine
-        console.log("[Auth] User profile already exists");
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        process.env.NODE_ENV !== "production" && console.log("[Auth] User profile already exists");
       } else {
         const data = await response.json();
         console.error("[Auth] Failed to create user profile:", data.error);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { MeetingHeader } from "./MeetingHeader";
 import { ParticipantTile } from "./ParticipantTile";
 import { MeetingControls } from "./MeetingControls";
@@ -46,7 +47,7 @@ export function MeetingView({
   // Memoize error handler to prevent recreating on every render
   const handleError = useCallback((error: Error) => {
     console.error("Chime meeting error:", error);
-    alert("Meeting error: " + error.message);
+    toast.error("Meeting error: " + error.message);
   }, []);
 
   const {

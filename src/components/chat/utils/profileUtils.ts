@@ -29,3 +29,22 @@ export const getProfileData = (
     groupsInCommon: [],
   };
 };
+
+// Get current user's profile data
+export const getCurrentUserProfileData = (
+  currentUserId: string,
+  currentUserName: string
+) => {
+  if (!currentUserId) return null;
+
+  // TODO: Fetch user profile from API
+  // For now, return placeholder data
+  return {
+    id: currentUserId,
+    name: currentUserName,
+    email: `${currentUserName.toLowerCase().replace(/\s+/g, ".")}@fiu.edu`,
+    status: "Available",
+    location: "Miami, FL",
+    about: "FIU Student",
+  };
+};
