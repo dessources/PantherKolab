@@ -5,7 +5,9 @@
       "Bash(cat:*)",
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
-      "Bash(aws dynamodb create-table:*)"
+      "Bash(aws dynamodb create-table:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
