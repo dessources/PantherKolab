@@ -196,7 +196,7 @@ export function useMessages({
 
           // Play sound for received messages (not sent by current user and not optimistic replacements)
           if (isNewMessage && newMessage.senderId !== currentUserId) {
-            setTimeout(() => soundEffects.play("message-received"), 600);
+            soundEffects.play("message-received");
           }
         }
       }
@@ -268,7 +268,7 @@ export function useMessages({
         }
       }
     },
-    []
+    [currentUserId]
   );
 
   /**

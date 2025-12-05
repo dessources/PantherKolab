@@ -11,6 +11,7 @@
 
 import { MessageList, type MockMessage } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { SummaryButton } from '@/components/SummaryButton';
 
 interface ChatWindowProps {
   conversationId: string | null;
@@ -137,6 +138,16 @@ export function ChatWindow({
           </p>
         </div>
       )}
+
+      {/* AI Summary Button */}
+      <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
+        <SummaryButton
+          conversationId={conversationId}
+          onSummaryGenerated={(summary) => {
+            console.log('AI Summary generated:', summary);
+          }}
+        />
+      </div>
 
       {/* Messages */}
       <MessageList messages={messages} currentUserId={currentUserId} />

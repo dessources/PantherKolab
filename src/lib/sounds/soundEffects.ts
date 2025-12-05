@@ -2,11 +2,11 @@
 
 /**
  * Sound Effects Utility
- * Generates simple notification sounds using Web Audio API
- * Keeps code DRY by centralizing all sound generation logic
+ * Centralized sound management using Web Audio API
+ * Generates all sounds programmatically (no audio files needed)
  */
 
-type SoundType =
+export type SoundType =
   | "message-sent"
   | "message-received"
   | "call-ringing"
@@ -28,10 +28,13 @@ class SoundEffects {
   }
 
   /**
-   * Enable or disable all sounds
+   * Enable or disable all sound effects
    */
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
+    if (!enabled) {
+      this.stopRinging();
+    }
   }
 
   /**
@@ -68,10 +71,12 @@ class SoundEffects {
   }
 
   /**
-   * Start repeating ring tone
+   * Start continuous ringing (for incoming calls)
    */
   startRinging() {
-    // Stop any existing ringing first
+    if (!this.enabled || !this.audioContext) return;
+
+    // Stop any existing ringing
     this.stopRinging();
 
     // Play immediately

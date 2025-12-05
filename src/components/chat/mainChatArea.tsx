@@ -20,6 +20,7 @@ import {
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import type { Message as DBMessage, Conversation } from "@/types/database";
 import Image from "next/image";
+import { SummaryButton } from "@/components/SummaryButton";
 
 interface MainChatAreaProps {
   selectedConversation: Conversation | null;
@@ -301,6 +302,13 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
             </button>
           </div>
         </div>
+
+        {/* AI Summary Button */}
+        {selectedConversation && (
+          <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
+            <SummaryButton conversationId={selectedConversation.conversationId} />
+          </div>
+        )}
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">

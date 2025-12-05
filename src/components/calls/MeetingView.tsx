@@ -7,6 +7,7 @@ import { ParticipantTile } from "./ParticipantTile";
 import { MeetingControls } from "./MeetingControls";
 import { useChimeMeeting } from "@/hooks/useChimeMeeting";
 import type { Meeting, Attendee } from "@aws-sdk/client-chime-sdk-meetings";
+import { toast } from "sonner";
 
 interface Participant {
   id: string;
