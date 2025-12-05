@@ -370,6 +370,43 @@ export const useChat = (currentUserId: string) => {
     }
   };
 
+  const handleCreateWhiteboard = async (name: string): Promise<string | null> => {
+    if (!selectedConversation) {
+      toast.error("No conversation selected.");
+      return null;
+    }
+    if (!name.trim()) {
+      toast.error("Whiteboard name cannot be empty.");
+      return null;
+    }
+
+    try {
+      const response = await fetch("/api/whiteboards/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          conversationId: selectedConversation.conversationId,
+          name,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create whiteboard.");
+      }
+
+      const data = await response.json();
+      toast.success(`Whiteboard "${data.whiteboard.name}" created!`);
+      return data.whiteboard.whiteboardId;
+
+    } catch (error) {
+      console.error("Error creating whiteboard:", error);
+      toast.error(error instanceof Error ? error.message : "An unknown error occurred.");
+      return null;
+    }
+  };
+
   return {
     conversations,
     uiConversations,
@@ -390,6 +427,7 @@ export const useChat = (currentUserId: string) => {
     handleSendMessage,
     handleSelectUser,
     handleCreateGroup,
+    handleCreateWhiteboard,
 
     // Call-related states and actions
     isConnected,

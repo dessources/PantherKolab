@@ -147,6 +147,22 @@ export async function subscribeToUserCalls(
   });
 }
 
+/**
+ * Subscribe to ALL whiteboard events for the current user
+ *
+ * Includes: WHITEBOARD_UPDATED, PARTICIPANT_JOINED, PARTICIPANT_LEFT, etc.
+ */
+export async function subscribeToUserWhiteboards(
+  userId: string,
+  onEvent: (event: AppSyncEvent) => void,
+  onError?: (error: Error) => void
+): Promise<{ close: () => void }> {
+  return subscribeToChannel(`/whiteboards/${userId}`, {
+    onEvent,
+    onError,
+  });
+}
+
 // Legacy aliases for backwards compatibility
 export const subscribeToUserMessages = subscribeToUserChats;
 export const subscribeToUserNotifications = subscribeToUserCalls;
@@ -162,6 +178,7 @@ const AppSyncClient = {
   // User-centric subscriptions (new)
   subscribeToUserChats,
   subscribeToUserCalls,
+  subscribeToUserWhiteboards,
 
   // Legacy aliases
   subscribeToUserMessages,
