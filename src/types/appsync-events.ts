@@ -87,6 +87,8 @@ export interface CallConnectedEvent {
   type: "CALL_CONNECTED";
   data: {
     sessionId: string;
+    conversationId: string | null; // Conversation ID (null for direct calls without context)
+    callType: "DIRECT" | "GROUP"; // Call type
     meeting: {
       MeetingId: string;
       MediaPlacement: {
@@ -210,6 +212,32 @@ export interface WhiteboardCursorMovedEvent {
   };
 }
 
+// Whiteboard-Call Integration Events
+export interface WhiteboardOpenedInCallEvent {
+  type: "WHITEBOARD_OPENED_IN_CALL";
+  data: {
+    sessionId: string; // Call session ID
+    whiteboardId: string;
+    whiteboardName: string;
+    conversationId: string;
+    openedBy: string;
+    openedByName: string;
+    snapshot: string | null; // Initial tldraw state
+    timestamp: string;
+  };
+}
+
+export interface WhiteboardClosedInCallEvent {
+  type: "WHITEBOARD_CLOSED_IN_CALL";
+  data: {
+    sessionId: string;
+    whiteboardId: string;
+    closedBy: string;
+    closedByName: string;
+    timestamp: string;
+  };
+}
+
 // ============================================================================
 // Union Types
 // ============================================================================
@@ -241,7 +269,9 @@ export type WhiteboardEvent =
   | WhiteboardDeletedEvent
   | WhiteboardParticipantJoinedEvent
   | WhiteboardParticipantLeftEvent
-  | WhiteboardCursorMovedEvent;
+  | WhiteboardCursorMovedEvent
+  | WhiteboardOpenedInCallEvent
+  | WhiteboardClosedInCallEvent;
 
 export type AppSyncEventUnion = ChatEvent | CallEvent | WhiteboardEvent;
 
@@ -275,7 +305,9 @@ export type WhiteboardEventType =
   | "WHITEBOARD_DELETED"
   | "WHITEBOARD_PARTICIPANT_JOINED"
   | "WHITEBOARD_PARTICIPANT_LEFT"
-  | "WHITEBOARD_CURSOR_MOVED";
+  | "WHITEBOARD_CURSOR_MOVED"
+  | "WHITEBOARD_OPENED_IN_CALL"
+  | "WHITEBOARD_CLOSED_IN_CALL";
 
 export type EventType =
   | MessageEventType

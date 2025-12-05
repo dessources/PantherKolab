@@ -365,7 +365,9 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
             <button
               onClick={async () => {
                 const whiteBoardId = await onCreateWhiteboard("New Whiteboard");
-                if (whiteBoardId) router.push(`/whiteboard/${whiteBoardId}`);
+                // if (whiteBoardId) router.push(`/whiteboard/${whiteBoardId}`);
+                if (whiteBoardId)
+                  window.open(`/whiteboard/${whiteBoardId}`, "_blank");
               }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               title="Open whiteboard"
@@ -550,14 +552,14 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
         {/* Message Input */}
         <div className="bg-white border-t border-gray-200 px-6 py-4 relative">
           {/* Emoji Picker */}
-          {showEmojiPicker && (
+          {/* {showEmojiPicker && (
             <div
               ref={emojiPickerRef}
               className="absolute bottom-full right-8 mb-2 z-50"
             >
               <EmojiPicker onEmojiClick={handleEmojiSelect} />
             </div>
-          )}
+          )} */}
 
           <div className="flex items-center gap-3">
             {/* Hidden File Input */}

@@ -26,6 +26,8 @@ export default function CallPage() {
     isRinging,
     incomingCall,
     isCallOwner,
+    activeCall,
+    activeWhiteboard,
     setCallType,
     setRecipientId,
     handleInitiateCall,
@@ -34,6 +36,8 @@ export default function CallPage() {
     handleEndCall,
     handleLeaveCall,
     handleCancelCall,
+    handleOpenWhiteboard,
+    handleCloseWhiteboard,
   } = useCallState({ userId: localUserId, isAuthenticated });
 
   return (
@@ -137,8 +141,12 @@ export default function CallPage() {
           }
           localUserId={localUserId}
           participantNames={{}} // Empty map for standalone calls - will display userIds
+          conversationId={activeCall?.conversationId || ""}
+          activeWhiteboard={activeWhiteboard}
           onEndCall={handleEndCall}
           onLeaveCall={handleLeaveCall}
+          onOpenWhiteboard={handleOpenWhiteboard}
+          onCloseWhiteboard={handleCloseWhiteboard}
           onSettingsClick={() => toast.info("Settings clicked")}
         />
       )}

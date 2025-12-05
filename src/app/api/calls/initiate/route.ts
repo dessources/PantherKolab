@@ -112,12 +112,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // For DIRECT calls without conversationId, create or find DM conversation
+    let finalConversationId = conversationId;
+    if (callType === "DIRECT" && !conversationId) {
+      // Get the other participant (not the caller)
+      const otherParticipantId = participantIds.find((id) => id !== auth.userId);
+      if (otherParticipantId) {
+        try {
+          // Get the other user's name for the DM
+          const otherUser = await userService.getUser(otherParticipantId);
+          const otherUserName = otherUser
+            ? `${otherUser.firstName} ${otherUser.lastName}`
+            : "Unknown User";
+
+          // Find or create DM conversation
+          const dmConversation = await conversationService.findOrCreateDM(
+            auth.userId,
+            otherParticipantId,
+            otherUserName
+          );
+          finalConversationId = dmConversation.conversationId;
+        } catch (error) {
+          console.error("Failed to create/find DM for direct call:", error);
+          // Continue without conversationId - it's optional for direct calls
+        }
+      }
+    }
+
     // Initiate call, which now creates the Chime meeting
     const { call, meeting, attendee } = await callManager.initiateCall({
       callType,
       initiatedBy: auth.userId,
       participantIds,
-      conversationId,
+      conversationId: finalConversationId,
     });
 
     // Verify call was created successfully
@@ -145,6 +172,8 @@ export async function POST(req: NextRequest) {
         type: "CALL_CONNECTED",
         data: {
           sessionId: call.sessionId,
+          conversationId: call.conversationId,
+          callType: call.callType,
           meeting,
           attendees: { [auth.userId]: attendee },
         },

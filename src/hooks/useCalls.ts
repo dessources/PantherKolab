@@ -25,6 +25,8 @@ import type {
   ParticipantJoinedEvent,
   CallErrorEvent,
   CallEvent,
+  WhiteboardOpenedInCallEvent,
+  WhiteboardClosedInCallEvent,
 } from "@/types/appsync-events";
 import type { CallType } from "@/types/database";
 import { soundEffects } from "@/lib/sounds/soundEffects";
@@ -49,6 +51,7 @@ export interface MeetingData {
 export interface ActiveCall {
   sessionId: string;
   callType: CallType;
+  conversationId: string | null; // Conversation ID (null for direct calls without context)
   isOwner: boolean; // Whether current user is the call owner
   meeting?: MeetingData["meeting"];
   attendees?: MeetingData["attendees"];
@@ -71,6 +74,8 @@ export interface UseCallsOptions {
     userId: string,
     attendee: ParticipantJoinedEvent["data"]["attendee"]
   ) => void;
+  onWhiteboardOpened?: (data: WhiteboardOpenedInCallEvent["data"]) => void;
+  onWhiteboardClosed?: (data: WhiteboardClosedInCallEvent["data"]) => void;
   onError?: (error: string) => void;
 }
 
@@ -87,6 +92,8 @@ export function useCalls({
   onCallCancelled,
   onParticipantLeft,
   onParticipantJoined,
+  onWhiteboardOpened,
+  onWhiteboardClosed,
   onError,
 }: UseCallsOptions) {
   // Connection state
@@ -97,6 +104,14 @@ export function useCalls({
   const [activeCall, setActiveCall] = useState<ActiveCall | null>(null);
   const [isRinging, setIsRinging] = useState(false);
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+
+  // Whiteboard state
+  const [activeWhiteboard, setActiveWhiteboard] = useState<{
+    whiteboardId: string;
+    whiteboardName: string;
+    snapshot: string | null;
+    openedBy: string;
+  } | null>(null);
 
   // Track if current user initiated the call (for ownership)
   const isCallInitiatorRef = useRef(false);
@@ -109,7 +124,12 @@ export function useCalls({
   // ============================================================================
 
   const handleCallEvent = useCallback(
-    (event: CallEvent) => {
+    (
+      event:
+        | CallEvent
+        | WhiteboardOpenedInCallEvent
+        | WhiteboardClosedInCallEvent
+    ) => {
       switch (event.type) {
         case "INCOMING_CALL": {
           const data = event.data as IncomingCallEvent["data"];
@@ -135,7 +155,8 @@ export function useCalls({
           const data = event.data as CallConnectedEvent["data"];
           setActiveCall({
             sessionId: data.sessionId,
-            callType: "DIRECT", // Will be updated if group call
+            callType: data.callType,
+            conversationId: data.conversationId,
             isOwner: isCallInitiatorRef.current, // Initiator is initial owner
             meeting: data.meeting,
             attendees: data.attendees,
@@ -183,6 +204,7 @@ export function useCalls({
           setActiveCall(null);
           setIsRinging(false);
           setIncomingCall(null);
+          setActiveWhiteboard(null); // Clear whiteboard when call ends
           isCallInitiatorRef.current = false;
           soundEffects.play("call-ended");
           onCallEnded?.(data.sessionId, data.endedBy);
@@ -212,6 +234,25 @@ export function useCalls({
           break;
         }
 
+        case "WHITEBOARD_OPENED_IN_CALL": {
+          const data = event.data as WhiteboardOpenedInCallEvent["data"];
+          setActiveWhiteboard({
+            whiteboardId: data.whiteboardId,
+            whiteboardName: data.whiteboardName,
+            snapshot: data.snapshot,
+            openedBy: data.openedBy,
+          });
+          onWhiteboardOpened?.(data);
+          break;
+        }
+
+        case "WHITEBOARD_CLOSED_IN_CALL": {
+          const data = event.data as WhiteboardClosedInCallEvent["data"];
+          setActiveWhiteboard(null);
+          onWhiteboardClosed?.(data);
+          break;
+        }
+
         case "CALL_ERROR": {
           const data = event.data as CallErrorEvent["data"];
           setError(new Error(data.error));
@@ -229,6 +270,8 @@ export function useCalls({
       onCallCancelled,
       onParticipantLeft,
       onParticipantJoined,
+      onWhiteboardOpened,
+      onWhiteboardClosed,
       onError,
     ]
   );
@@ -247,8 +290,12 @@ export function useCalls({
         subscriptionRef.current = await subscribeToUserNotifications(
           userId,
           (event) => {
-            // Filter for call events only
-            const callEventTypes: CallEvent["type"][] = [
+            // Filter for call events and whiteboard-in-call events
+            const callEventTypes: (
+              | CallEvent["type"]
+              | "WHITEBOARD_OPENED_IN_CALL"
+              | "WHITEBOARD_CLOSED_IN_CALL"
+            )[] = [
               "INCOMING_CALL",
               "CALL_RINGING",
               "CALL_CONNECTED",
@@ -258,10 +305,24 @@ export function useCalls({
               "PARTICIPANT_LEFT",
               "PARTICIPANT_JOINED",
               "CALL_ERROR",
+              "WHITEBOARD_OPENED_IN_CALL",
+              "WHITEBOARD_CLOSED_IN_CALL",
             ];
 
-            if (callEventTypes.includes(event.type as CallEvent["type"])) {
-              handleCallEvent(event as CallEvent);
+            if (
+              callEventTypes.includes(
+                event.type as
+                  | CallEvent["type"]
+                  | "WHITEBOARD_OPENED_IN_CALL"
+                  | "WHITEBOARD_CLOSED_IN_CALL"
+              )
+            ) {
+              handleCallEvent(
+                event as
+                  | CallEvent
+                  | WhiteboardOpenedInCallEvent
+                  | WhiteboardClosedInCallEvent
+              );
             }
           },
           (err) => {
@@ -488,6 +549,44 @@ export function useCalls({
     setIncomingCall(null);
   }, []);
 
+  /**
+   * Open a whiteboard in the current call
+   */
+  const openWhiteboard = useCallback(
+    async (sessionId: string, whiteboardId: string): Promise<void> => {
+      const response = await fetch("/api/calls/whiteboard/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, whiteboardId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to open whiteboard");
+      }
+    },
+    []
+  );
+
+  /**
+   * Close the active whiteboard in the current call
+   */
+  const closeWhiteboard = useCallback(
+    async (sessionId: string, whiteboardId: string): Promise<void> => {
+      const response = await fetch("/api/calls/whiteboard/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, whiteboardId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to close whiteboard");
+      }
+    },
+    []
+  );
+
   // ============================================================================
   // Return
   // ============================================================================
@@ -502,6 +601,9 @@ export function useCalls({
     isRinging,
     incomingCall,
 
+    // Whiteboard state
+    activeWhiteboard,
+
     // Computed state
     isInCall: activeCall !== null,
     isCallOwner: activeCall?.isOwner ?? false,
@@ -514,5 +616,7 @@ export function useCalls({
     leaveCall,
     endCall,
     dismissIncomingCall,
+    openWhiteboard,
+    closeWhiteboard,
   };
 }

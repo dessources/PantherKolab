@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
         type: "CALL_CONNECTED",
         data: {
           sessionId,
+          conversationId: call.conversationId,
+          callType: call.callType,
           meeting,
           attendees: { [auth.userId]: attendee },
         },

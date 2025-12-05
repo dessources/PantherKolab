@@ -3,6 +3,10 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useCalls, type MeetingData } from "@/hooks/useCalls";
+import type {
+  WhiteboardOpenedInCallEvent,
+  WhiteboardClosedInCallEvent,
+} from "@/types/appsync-events";
 
 interface UseCallStateParams {
   userId: string;
@@ -73,6 +77,26 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     toast.error("Call error: " + error);
   }, []);
 
+  const handleWhiteboardOpened = useCallback(
+    (data: WhiteboardOpenedInCallEvent["data"]) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" &&
+        console.log("Whiteboard opened in call:", data);
+      toast.info(`${data.openedByName} opened whiteboard: ${data.whiteboardName}`);
+    },
+    []
+  );
+
+  const handleWhiteboardClosed = useCallback(
+    (data: WhiteboardClosedInCallEvent["data"]) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      process.env.NODE_ENV !== "production" &&
+        console.log("Whiteboard closed in call:", data);
+      toast.info(`${data.closedByName} closed the whiteboard`);
+    },
+    []
+  );
+
   // Use the useCalls hook - only connect when fully authenticated
   const {
     isConnected,
@@ -80,12 +104,15 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     isRinging,
     incomingCall,
     isCallOwner,
+    activeWhiteboard,
     initiateCall,
     acceptCall,
     rejectCall,
     cancelCall,
     leaveCall,
     endCall,
+    openWhiteboard,
+    closeWhiteboard,
   } = useCalls({
     userId: isAuthenticated ? userId : "",
     onCallConnected: handleCallConnected,
@@ -93,6 +120,8 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     onCallRejected: handleCallRejected,
     onCallCancelled: handleCallCancelled,
     onParticipantLeft: handleParticipantLeft,
+    onWhiteboardOpened: handleWhiteboardOpened,
+    onWhiteboardClosed: handleWhiteboardClosed,
     onError: handleError,
   });
 
@@ -189,6 +218,39 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     }
   }, [activeCall, cancelCall]);
 
+  // Handle opening a whiteboard in the call
+  const handleOpenWhiteboard = useCallback(
+    async (whiteboardId: string) => {
+      if (!activeCall?.sessionId) {
+        toast.error("No active call");
+        return;
+      }
+      try {
+        await openWhiteboard(activeCall.sessionId, whiteboardId);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to open whiteboard"
+        );
+      }
+    },
+    [activeCall, openWhiteboard]
+  );
+
+  // Handle closing the active whiteboard
+  const handleCloseWhiteboard = useCallback(async () => {
+    if (!activeCall?.sessionId || !activeWhiteboard?.whiteboardId) {
+      toast.error("No active whiteboard");
+      return;
+    }
+    try {
+      await closeWhiteboard(activeCall.sessionId, activeWhiteboard.whiteboardId);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to close whiteboard"
+      );
+    }
+  }, [activeCall, activeWhiteboard, closeWhiteboard]);
+
   return {
     // State
     showMeeting,
@@ -200,6 +262,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     incomingCall,
     isCallOwner,
     activeCall,
+    activeWhiteboard,
 
     // State setters
     setCallType,
@@ -212,5 +275,7 @@ export function useCallState({ userId, isAuthenticated }: UseCallStateParams) {
     handleEndCall,
     handleLeaveCall,
     handleCancelCall,
+    handleOpenWhiteboard,
+    handleCloseWhiteboard,
   };
 }

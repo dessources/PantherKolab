@@ -171,6 +171,21 @@ export const useChat = (currentUserId: string) => {
     fetchConversations();
   }, [currentUserId]);
 
+  // Set selected conversation when call connects
+  useEffect(() => {
+    if (activeCall?.conversationId && conversations.length > 0) {
+      // Find the conversation that matches the call's conversationId
+      const callConversation = conversations.find(
+        (conv) => conv.conversationId === activeCall.conversationId
+      );
+
+      if (callConversation) {
+        setSelectedConversation(callConversation);
+        setSelectedUIConversation(convertToUIConversation(callConversation));
+      }
+    }
+  }, [activeCall?.conversationId, conversations]);
+
   // Handle conversation selection
   const handleSelectConversation = (uiConv: UIConversation) => {
     // Find corresponding DB conversation

@@ -1,20 +1,24 @@
 "use client";
 
-import { useEditor, getSnapshot as toSnapshot } from "tldraw";
-import dynamic from "next/dynamic";
+import {
+  Tldraw as TldrawComponent,
+  useEditor,
+  getSnapshot as toSnapshot,
+} from "tldraw";
+// import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
 import "tldraw/tldraw.css"; // Import tldraw styles
 import styles from "./WhiteboardCanvas.module.css";
 import CustomStylePanel from "./CustomStylePanel";
 
-// Lazy load the Tldraw component to prevent SSR issues and reduce initial bundle size.
-const TldrawComponent = dynamic(
-  () => import("tldraw").then((mod) => mod.Tldraw),
-  {
-    ssr: false,
-  }
-);
+// // Lazy load the Tldraw component to prevent SSR issues and reduce initial bundle size.
+// const tldrawModule = dynamic(
+//   () => import("tldraw").then((mod) => mod),
+//   {
+//     ssr: false,
+//   }
+// );
 
 interface WhiteboardCanvasProps {
   whiteboardId: string;
@@ -91,6 +95,7 @@ export function WhiteboardCanvas({
         onMount={(editor) => {
           editor.updateInstanceState({ isReadonly: props.isReadonly });
         }}
+        licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY}
       >
         <EditorWithSync {...props} />
         {props.children}

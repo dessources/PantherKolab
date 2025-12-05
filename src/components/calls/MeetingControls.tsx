@@ -21,11 +21,13 @@ interface MeetingControlsProps {
   isVideoEnabled: boolean;
   isHandRaised?: boolean;
   isScreenSharing?: boolean;
+  hasActiveWhiteboard?: boolean;
   onToggleMute: () => void;
   onToggleVideo: () => void;
   onToggleRaiseHand?: () => void;
   onAddParticipant?: () => void;
   onShareScreen?: () => void;
+  onToggleWhiteboard?: () => void;
   onToggleChat?: () => void;
   isCallOwner?: boolean;
   onEndCall: () => void;
@@ -37,11 +39,13 @@ export function MeetingControls({
   isVideoEnabled,
   isHandRaised = false,
   isScreenSharing = false,
+  hasActiveWhiteboard = false,
   onToggleMute,
   onToggleVideo,
   onToggleRaiseHand,
   onAddParticipant,
   onShareScreen,
+  onToggleWhiteboard,
   onToggleChat,
   isCallOwner,
   onEndCall,
@@ -130,6 +134,40 @@ export function MeetingControls({
                 />
                 <path d="M8 21h8" strokeWidth="2" strokeLinecap="round" />
                 <path d="M12 17v4" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            {/* Whiteboard Button - hidden on mobile */}
+            <button
+              onClick={onToggleWhiteboard}
+              className={`hidden sm:block p-4 rounded-lg transition-colors cursor-pointer ${
+                hasActiveWhiteboard
+                  ? "bg-purple-500 hover:bg-purple-600 text-white"
+                  : "bg-[#00376f] hover:bg-[#0052A3] text-white"
+              }`}
+              aria-label={hasActiveWhiteboard ? "Close whiteboard" : "Open whiteboard"}
+            >
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <rect
+                  x="3"
+                  y="4"
+                  width="18"
+                  height="14"
+                  rx="2"
+                  strokeWidth="2"
+                />
+                <path d="M3 10h18" strokeWidth="2" />
+                <path
+                  d="M8 21l4-7 4 7"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
 

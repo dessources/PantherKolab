@@ -6,6 +6,7 @@ import { MeetingHeader } from "./MeetingHeader";
 import { ParticipantTile } from "./ParticipantTile";
 import { ParticipantStrip } from "./ParticipantStrip";
 import { ScreenShareView } from "./ScreenShareView";
+import { WhiteboardInCallView } from "./WhiteboardInCallView";
 import { MeetingControls } from "./MeetingControls";
 import { useChimeMeeting } from "@/hooks/useChimeMeeting";
 import type { Meeting, Attendee } from "@aws-sdk/client-chime-sdk-meetings";
@@ -28,8 +29,17 @@ interface MeetingViewProps {
   attendee?: Attendee;
   localUserId?: string;
   participantNames?: { [userId: string]: string }; // Map of userId to display name
+  conversationId?: string | null;
+  activeWhiteboard?: {
+    whiteboardId: string;
+    whiteboardName: string;
+    snapshot: string | null;
+    openedBy: string;
+  } | null;
   onEndCall: () => void;
   onLeaveCall?: () => void;
+  onOpenWhiteboard?: (whiteboardId: string) => void;
+  onCloseWhiteboard?: () => void;
   onSettingsClick?: () => void;
 }
 
@@ -43,8 +53,12 @@ export function MeetingView({
   meeting,
   attendee,
   participantNames = {},
+  conversationId,
+  activeWhiteboard,
   onEndCall,
   onLeaveCall,
+  onOpenWhiteboard,
+  onCloseWhiteboard,
   onSettingsClick,
 }: MeetingViewProps) {
   // Memoize error handler to prevent recreating on every render
@@ -138,6 +152,79 @@ export function MeetingView({
   // Check if screen sharing is active
   const isScreenShareActive = !!contentTile;
 
+  // Check if whiteboard is active
+  const isWhiteboardActive = !!activeWhiteboard;
+
+  // Debug logging
+  console.log("[MeetingView] activeWhiteboard:", activeWhiteboard);
+  console.log("[MeetingView] isWhiteboardActive:", isWhiteboardActive);
+
+  // Determine what to show in main content area
+  const shouldShowScreenShare = isScreenShareActive && !isWhiteboardActive;
+  const shouldShowWhiteboard = isWhiteboardActive;
+  const shouldShowGrid = !shouldShowScreenShare && !shouldShowWhiteboard;
+
+  console.log("[MeetingView] shouldShowWhiteboard:", shouldShowWhiteboard);
+  console.log("[MeetingView] shouldShowScreenShare:", shouldShowScreenShare);
+  console.log("[MeetingView] shouldShowGrid:", shouldShowGrid);
+
+  // Handle whiteboard toggle - create new or open existing
+  const handleWhiteboardToggle = useCallback(async () => {
+    if (isWhiteboardActive) {
+      // Close active whiteboard
+      onCloseWhiteboard?.();
+    } else {
+      // Need to create or open whiteboard
+      const default_conversationId = "ee4f1426-5f14-4f3d-b01a-216f8805306a";
+
+      if (!default_conversationId) {
+        toast.error("Whiteboard requires a conversation context");
+        return;
+      }
+
+      try {
+        // Check if whiteboard exists for this conversation
+        const response = await fetch(
+          `/api/whiteboards/list?conversationId=${default_conversationId}`
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to check for existing whiteboards");
+        }
+
+        const data = await response.json();
+        const whiteboards = data.whiteboards || [];
+
+        if (whiteboards.length > 0) {
+          // Open the first (most recent) whiteboard
+          onOpenWhiteboard?.(whiteboards[0].whiteboardId);
+        } else {
+          // Create a new whiteboard
+          const createResponse = await fetch("/api/whiteboards/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              conversationId: default_conversationId,
+              name: `Call Whiteboard - ${new Date().toLocaleString()}`,
+            }),
+          });
+
+          if (!createResponse.ok) {
+            throw new Error("Failed to create whiteboard");
+          }
+
+          const newWhiteboard = await createResponse.json();
+          onOpenWhiteboard?.(newWhiteboard.whiteboardId);
+        }
+      } catch (error) {
+        console.error("Error with whiteboard:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to manage whiteboard"
+        );
+      }
+    }
+  }, [isWhiteboardActive, onCloseWhiteboard, onOpenWhiteboard]);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50">
       {/* Hidden audio element for Chime SDK */}
@@ -153,7 +240,28 @@ export function MeetingView({
       </div>
 
       {/* Content area - conditional layout */}
-      {isScreenShareActive && contentTile ? (
+      {shouldShowWhiteboard ? (
+        /* Whiteboard Layout */
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Top strip: Horizontal scrolling participant tiles (1/5 height) */}
+          <ParticipantStrip
+            participants={
+              participants as Array<Participant & { tileId: number }>
+            }
+            activeSpeakerId={displayActiveSpeakerId}
+            onVideoElementReady={handleVideoElementReady}
+          />
+
+          {/* Bottom area: Whiteboard (4/5 height) */}
+          <WhiteboardInCallView
+            whiteboardId={activeWhiteboard!.whiteboardId}
+            currentUserId={localUserId || ""}
+            initialSnapshot={activeWhiteboard!.snapshot}
+            isCreator={activeWhiteboard!.openedBy === localUserId}
+            onClose={onCloseWhiteboard || (() => {})}
+          />
+        </div>
+      ) : shouldShowScreenShare && contentTile ? (
         /* Screen Share Layout */
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Top strip: Horizontal scrolling participant tiles (1/5 height) */}
@@ -171,7 +279,7 @@ export function MeetingView({
             onVideoElementReady={handleVideoElementReady}
           />
         </div>
-      ) : (
+      ) : shouldShowGrid ? (
         /* Normal Grid Layout */
         <div className="flex-1 overflow-hidden flex items-center justify-center p-4 md:px-8 lg:px-16 xl:px-24 lg:py-6">
           <div
@@ -228,7 +336,7 @@ export function MeetingView({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Controls with responsive padding */}
       <div className="px-0 md:px-8 lg:px-0 xl:px-0">
@@ -242,6 +350,8 @@ export function MeetingView({
           onLeaveCall={onLeaveCall}
           isScreenSharing={isScreenSharing}
           onShareScreen={isScreenSharing ? stopScreenShare : startScreenShare}
+          hasActiveWhiteboard={isWhiteboardActive}
+          onToggleWhiteboard={handleWhiteboardToggle}
         />
       </div>
     </div>
