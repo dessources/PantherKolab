@@ -12,14 +12,13 @@ import {
   type Whiteboard,
   type CreateWhiteboardInput,
 } from "@/types/database";
+import { logDebug } from "@/lib/utils";
 
 export const whiteboardService = {
   /**
    * Create a new whiteboard
    */
-  async createWhiteboard(
-    input: CreateWhiteboardInput
-  ): Promise<Whiteboard> {
+  async createWhiteboard(input: CreateWhiteboardInput): Promise<Whiteboard> {
     const now = new Date().toISOString();
 
     const whiteboard: Whiteboard = {
@@ -34,9 +33,11 @@ export const whiteboardService = {
       participants: [input.createdBy], // Creator is first participant
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Creating whiteboard:", whiteboard);
+    const logWhiteboard = { ...whiteboard };
+    if (logWhiteboard.snapshot) {
+      logWhiteboard.snapshot = logWhiteboard.snapshot.substring(0, 100) + "...";
+    }
+    logDebug("Creating whiteboard:", logWhiteboard);
 
     await dynamoDb.send(
       new PutCommand({
@@ -56,9 +57,7 @@ export const whiteboardService = {
    * Get a whiteboard by ID
    */
   async getWhiteboard(whiteboardId: string): Promise<Whiteboard | null> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Fetching whiteboard with ID:", whiteboardId);
+    logDebug("Fetching whiteboard with ID:", whiteboardId);
 
     const result = await dynamoDb.send(
       new GetCommand({
@@ -67,9 +66,15 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Fetched whiteboard:", result.Item);
+    if (result.Item) {
+      const logItem = { ...(result.Item as Whiteboard) };
+      if (logItem.snapshot) {
+        logItem.snapshot = logItem.snapshot.substring(0, 100) + "...";
+      }
+      logDebug("Fetched whiteboard:", logItem);
+    } else {
+      logDebug("Whiteboard not found for ID:", whiteboardId);
+    }
 
     return (result.Item as Whiteboard) || null;
   },
@@ -80,9 +85,7 @@ export const whiteboardService = {
   async listWhiteboardsByConversation(
     conversationId: string
   ): Promise<Whiteboard[]> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Listing whiteboards for conversationId:", conversationId);
+    logDebug("Listing whiteboards for conversationId:", conversationId);
 
     const result = await dynamoDb.send(
       new QueryCommand({
@@ -97,9 +100,15 @@ export const whiteboardService = {
 
     const whiteboards = (result.Items as Whiteboard[]) || [];
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log(`Found ${whiteboards.length} whiteboards for conversation`);
+    const logWhiteboards = whiteboards.map(wb => {
+      const logWb = { ...wb };
+      if (logWb.snapshot) {
+        logWb.snapshot = logWb.snapshot.substring(0, 100) + "...";
+      }
+      return logWb;
+    });
+
+    logDebug(`Found ${whiteboards.length} whiteboards for conversation:`, logWhiteboards);
 
     return whiteboards;
   },
@@ -113,15 +122,16 @@ export const whiteboardService = {
   ): Promise<void> {
     const now = new Date().toISOString();
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Updating whiteboard snapshot:", whiteboardId);
+    logDebug("Updating whiteboard snapshot for ID:", whiteboardId, "Snapshot (truncated):", snapshot.substring(0, 100) + "...");
 
     await dynamoDb.send(
       new UpdateCommand({
         TableName: TABLE_NAMES.WHITEBOARDS,
         Key: { whiteboardId },
-        UpdateExpression: "SET snapshot = :snapshot, updatedAt = :updatedAt",
+        UpdateExpression: "SET #snapshot = :snapshot, updatedAt = :updatedAt",
+        ExpressionAttributeNames: {
+          "#snapshot": "snapshot", // 'name' is a reserved word
+        },
         ExpressionAttributeValues: {
           ":snapshot": snapshot,
           ":updatedAt": now,
@@ -129,9 +139,7 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Whiteboard snapshot updated successfully");
+    logDebug("Whiteboard snapshot updated successfully for ID:", whiteboardId);
   },
 
   /**
@@ -143,9 +151,7 @@ export const whiteboardService = {
   ): Promise<void> {
     const now = new Date().toISOString();
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Updating whiteboard name:", whiteboardId, name);
+    logDebug("Updating whiteboard name for ID:", whiteboardId, "Name:", name);
 
     await dynamoDb.send(
       new UpdateCommand({
@@ -162,9 +168,7 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Whiteboard name updated successfully");
+    logDebug("Whiteboard name updated successfully for ID:", whiteboardId);
   },
 
   /**
@@ -173,9 +177,7 @@ export const whiteboardService = {
   async addParticipant(whiteboardId: string, userId: string): Promise<void> {
     const now = new Date().toISOString();
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Adding participant to whiteboard:", whiteboardId, userId);
+    logDebug("Adding participant to whiteboard:", whiteboardId, "User ID:", userId);
 
     // First check if user is already in participants
     const whiteboard = await this.getWhiteboard(whiteboardId);
@@ -184,9 +186,7 @@ export const whiteboardService = {
     }
 
     if (whiteboard.participants.includes(userId)) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      process.env.NODE_ENV !== "production" &&
-        console.log("User already in participants list");
+      logDebug("User already in participants list for whiteboard:", whiteboardId, "User ID:", userId);
       return;
     }
 
@@ -203,27 +203,16 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Participant added successfully");
+    logDebug("Participant added successfully to whiteboard:", whiteboardId, "User ID:", userId);
   },
 
   /**
    * Remove a participant from the whiteboard
    */
-  async removeParticipant(
-    whiteboardId: string,
-    userId: string
-  ): Promise<void> {
+  async removeParticipant(whiteboardId: string, userId: string): Promise<void> {
     const now = new Date().toISOString();
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log(
-        "Removing participant from whiteboard:",
-        whiteboardId,
-        userId
-      );
+    logDebug("Removing participant from whiteboard:", whiteboardId, "User ID:", userId);
 
     // Get current participants and filter out the user
     const whiteboard = await this.getWhiteboard(whiteboardId);
@@ -239,7 +228,8 @@ export const whiteboardService = {
       new UpdateCommand({
         TableName: TABLE_NAMES.WHITEBOARDS,
         Key: { whiteboardId },
-        UpdateExpression: "SET participants = :participants, updatedAt = :updatedAt",
+        UpdateExpression:
+          "SET participants = :participants, updatedAt = :updatedAt",
         ExpressionAttributeValues: {
           ":participants": updatedParticipants,
           ":updatedAt": now,
@@ -247,9 +237,7 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Participant removed successfully");
+    logDebug("Participant removed successfully from whiteboard:", whiteboardId, "User ID:", userId);
   },
 
   /**
@@ -261,9 +249,7 @@ export const whiteboardService = {
   ): Promise<void> {
     const now = new Date().toISOString();
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Setting whiteboard active status:", whiteboardId, isActive);
+    logDebug("Setting whiteboard active status for ID:", whiteboardId, "isActive:", isActive);
 
     await dynamoDb.send(
       new UpdateCommand({
@@ -277,18 +263,14 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Whiteboard active status updated successfully");
+    logDebug("Whiteboard active status updated successfully for ID:", whiteboardId);
   },
 
   /**
    * Delete a whiteboard
    */
   async deleteWhiteboard(whiteboardId: string): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Deleting whiteboard:", whiteboardId);
+    logDebug("Deleting whiteboard with ID:", whiteboardId);
 
     await dynamoDb.send(
       new DeleteCommand({
@@ -297,8 +279,6 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Whiteboard deleted successfully");
+    logDebug("Whiteboard deleted successfully with ID:", whiteboardId);
   },
 };

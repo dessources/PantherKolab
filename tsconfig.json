@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "types": [
       "node",
@@ -38,7 +38,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "jest.config.js",
-    "server.ts"
+    "server.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

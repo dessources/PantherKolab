@@ -9,6 +9,7 @@ import {
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useWhiteboard } from "@/hooks/useWhiteboard";
+import "tldraw/tldraw.css"; // Import tldraw styles
 
 // Lazy load the Tldraw component to prevent SSR issues and reduce initial bundle size.
 const TldrawComponent = dynamic(
@@ -82,7 +83,7 @@ function EditorWithSync({
           zIndex: 999,
           padding: "4px 8px",
           borderRadius: "5px",
-          backgroundColor: isConnected ? "#4CAF50" : "#F44336",
+          backgroundColor: isConnected ? "#2E7D32" : "#C62828",
           color: "white",
           fontSize: "12px",
         }}

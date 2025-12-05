@@ -9,9 +9,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Editor } from "tldraw";
+import { Editor, loadSnapshot } from "tldraw";
 import { subscribeToUserWhiteboards } from "@/lib/appSync/appsync-client";
-import { WhiteboardEvent, WhiteboardUpdatedEvent } from "@/types/appsync-events";
+import {
+  AppSyncEvent,
+  WhiteboardEvent,
+  WhiteboardUpdatedEvent,
+} from "@/types/appsync-events";
 import { logDebug } from "@/lib/utils";
 
 interface UseWhiteboardOptions {
@@ -49,11 +53,15 @@ export function useWhiteboard({
   /**
    * Handle incoming whiteboard events from AppSync subscription.
    */
-  const handleWhiteboardEvent = useCallback((event: WhiteboardEvent) => {
+  const handleWhiteboardEvent = useCallback((event: AppSyncEvent) => {
     logDebug("Received whiteboard event:", event.type, event.data);
 
     if (event.type === "WHITEBOARD_UPDATED") {
-      const { whiteboardId: updatedId, snapshot, updatedBy } = (event as WhiteboardUpdatedEvent).data;
+      const {
+        whiteboardId: updatedId,
+        snapshot,
+        updatedBy,
+      } = (event as WhiteboardUpdatedEvent).data;
 
       // Ignore if the event is for a different whiteboard or if it was sent by the current user
       if (
@@ -62,34 +70,31 @@ export function useWhiteboard({
       ) {
         return;
       }
-      
+
       const editor = editorRef.current;
       if (editor && snapshot) {
         try {
           const snapshotData = JSON.parse(snapshot);
           // This replaces the content on the current page.
           // It's the primary way to sync remote changes.
-          editor.replacePageContent(
-            snapshotData.store,
-            snapshotData.schema
-          );
+          loadSnapshot(editor.store, snapshotData);
+
           logDebug(`Applied remote snapshot to whiteboard ${updatedId}`);
-        } catch(e) {
-          console.error("Failed to parse or apply remote snapshot", e)
+        } catch (e) {
+          console.error("Failed to parse or apply remote snapshot", e);
         }
       }
     }
 
     // TODO: Handle other events like PARTICIPANT_JOINED, PARTICIPANT_LEFT, CURSOR_MOVED
     if (event.type === "WHITEBOARD_PARTICIPANT_JOINED") {
-        // const { userId } = event.data;
-        // setActiveUsers(prev => [...new Set([...prev, userId])]);
+      // const { userId } = event.data;
+      // setActiveUsers(prev => [...new Set([...prev, userId])]);
     }
     if (event.type === "WHITEBOARD_PARTICIPANT_LEFT") {
-        // const { userId } = event.data;
-        // setActiveUsers(prev => prev.filter(id => id !== userId));
+      // const { userId } = event.data;
+      // setActiveUsers(prev => prev.filter(id => id !== userId));
     }
-
   }, []);
 
   /**
@@ -137,7 +142,7 @@ export function useWhiteboard({
 
     debounceTimerRef.current = setTimeout(async () => {
       if (!whiteboardIdRef.current) return;
-      
+
       logDebug(`Syncing changes for whiteboard ${whiteboardIdRef.current}`);
       try {
         const response = await fetch("/api/whiteboards/sync", {

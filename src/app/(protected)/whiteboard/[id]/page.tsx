@@ -27,12 +27,17 @@ export default function WhiteboardPage() {
         const response = await fetch(`/api/whiteboards/${whiteboardId}`);
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || `Failed to fetch whiteboard: ${response.statusText}`);
+          throw new Error(
+            errorData.error ||
+              `Failed to fetch whiteboard: ${response.statusText}`
+          );
         }
         const data = await response.json();
         setWhiteboard(data.whiteboard);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred.");
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred."
+        );
       } finally {
         setLoading(false);
       }
@@ -57,7 +62,7 @@ export default function WhiteboardPage() {
     <>
       <WhiteboardCanvas
         whiteboardId={whiteboardId}
-        currentUserId={authUser.username} // Assuming username is the ID
+        currentUserId={authUser.userId} // Assuming username is the ID
         initialSnapshot={whiteboard.snapshot || undefined}
       >
         {showExportDialog && (
@@ -79,7 +84,7 @@ export default function WhiteboardPage() {
           padding: '10px 20px',
           borderRadius: '8px',
           border: 'none',
-          backgroundColor: '#007bff',
+          backgroundColor: '#0066CC',
           color: 'white',
           cursor: 'pointer'
         }}

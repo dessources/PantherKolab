@@ -22,6 +22,8 @@ import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import type { Message as DBMessage, Conversation } from "@/types/database";
 import Image from "next/image";
 import { SummaryButton } from "@/components/SummaryButton";
+import { logDebug } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface MainChatAreaProps {
   selectedConversation: Conversation | null;
@@ -37,7 +39,7 @@ interface MainChatAreaProps {
   isLoading?: boolean;
   error?: string;
   onCallClick: () => void; // New prop for the call button
-  onCreateWhiteboard: () => void; // New prop for the whiteboard button
+  onCreateWhiteboard: (name: string) => Promise<string | null>; // New prop for the whiteboard button
 }
 
 export interface MainChatAreaRef {
@@ -45,11 +47,8 @@ export interface MainChatAreaRef {
 }
 
 const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
-
   (
-
     {
-
       selectedConversation,
 
       messages,
@@ -73,255 +72,151 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
       onCallClick,
 
       onCreateWhiteboard,
-
     },
 
     ref
-
   ) => {
-
     // Manage input state locally
 
     const [messageInput, setMessageInput] = useState("");
-
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
     const [fileCaption, setFileCaption] = useState("");
-
-
-
     const fileInputRef = useRef<HTMLInputElement>(null);
-
     const textInputRef = useRef<HTMLInputElement>(null);
-
     const emojiPickerRef = useRef<HTMLDivElement>(null);
-
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-
-
+    const router = useRouter();
     // Expose the focus method
 
     useImperativeHandle(ref, () => ({
-
       focusInput: () => {
-
         textInputRef.current?.focus();
-
       },
-
     }));
-
-
 
     // Auto-scroll to bottom when messages change
 
     useEffect(() => {
-
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-
     }, [messages]);
-
-
 
     // Close emoji picker when clicking outside
 
     useEffect(() => {
-
       const handleClickOutside = (event: MouseEvent) => {
-
         if (
-
           emojiPickerRef.current &&
-
           !emojiPickerRef.current.contains(event.target as Node)
-
         ) {
-
           setShowEmojiPicker(false);
-
         }
-
       };
-
-
 
       if (showEmojiPicker) {
-
         document.addEventListener("mousedown", handleClickOutside);
-
       }
 
-
-
       return () => {
-
         document.removeEventListener("mousedown", handleClickOutside);
-
       };
-
     }, [showEmojiPicker]);
 
-
-
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-
       if (e.key === "Enter" && !e.shiftKey) {
-
         e.preventDefault();
 
         handleSendMessage();
-
       }
-
     };
 
-
-
     const handleSendMessage = () => {
-
       if (!messageInput.trim()) return;
 
       onSendMessage(messageInput);
 
       setMessageInput("");
-
     };
-
-
 
     const handleCallClick = () => {
-
       if (onCallClick) {
-
         onCallClick();
-
       }
-
     };
-
-
 
     const handleSearchClick = () => {
-
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 
-      process.env.NODE_ENV !== "production" &&
-
-        console.log("Opening search in conversation");
+      logDebug("Opening search in conversation");
 
       // TODO: Implement search in conversation
-
     };
-
-
 
     const handleMoreClick = () => {
-
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 
-      process.env.NODE_ENV !== "production" &&
-
-        console.log("Opening more options");
+      logDebug("Opening more options");
 
       // TODO: Implement more options menu
-
     };
-
-
 
     const handleAttachmentClick = () => {
-
       fileInputRef.current?.click();
-
     };
 
-
-
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-
       const file = e.target.files?.[0];
 
       if (file) {
-
         setSelectedFile(file);
 
         setFileCaption("");
-
       }
-
     };
 
-
-
     const handleSendFile = () => {
-
       if (selectedFile) {
-
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 
-        process.env.NODE_ENV !== "production" &&
+        logDebug(
+          "Sending file:",
 
-          console.log(
+          selectedFile.name,
 
-            "Sending file:",
+          "Caption:",
 
-            selectedFile.name,
-
-            "Caption:",
-
-            fileCaption
-
-          );
+          fileCaption
+        );
 
         // TODO: Implement actual file upload
 
         setSelectedFile(null);
 
         setFileCaption("");
-
       }
-
     };
 
-
-
     const handleCancelFile = () => {
-
       setSelectedFile(null);
 
       setFileCaption("");
 
       if (fileInputRef.current) {
-
         fileInputRef.current.value = "";
-
       }
-
     };
-
-
 
     const handleEmojiClick = () => {
-
       setShowEmojiPicker(!showEmojiPicker);
-
     };
 
-
-
     const handleEmojiSelect = (emojiData: EmojiClickData) => {
-
       const emoji = emojiData.emoji;
 
       const input = textInputRef.current;
 
-
-
       if (input) {
-
         const start = input.selectionStart || 0;
 
         const end = input.selectionEnd || 0;
@@ -330,44 +225,27 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
 
         const newText = text.substring(0, start) + emoji + text.substring(end);
 
-
-
         setMessageInput(newText);
-
-
 
         // Set cursor position after emoji
 
         setTimeout(() => {
-
           input.focus();
 
           input.setSelectionRange(start + emoji.length, start + emoji.length);
-
         }, 0);
-
       }
 
-
-
       setShowEmojiPicker(false);
-
     };
-
-
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-
       setMessageInput(e.target.value);
-
     };
-
-
 
     // Format timestamp
 
     const formatTimestamp = (isoString: string) => {
-
       const date = new Date(isoString);
 
       const now = new Date();
@@ -380,8 +258,6 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
 
       const hours = Math.floor(minutes / 60);
 
-
-
       if (seconds < 60) return "Just now";
 
       if (minutes < 60) return `${minutes}m ago`;
@@ -389,241 +265,138 @@ const MainChatArea = forwardRef<MainChatAreaRef, MainChatAreaProps>(
       if (hours < 24) return `${hours}h ago`;
 
       return date.toLocaleDateString();
-
     };
-
-
 
     // Show empty state if no conversation selected
 
     if (!selectedConversation) {
-
       return (
-
         <div className="flex-1 flex items-center justify-center bg-gray-50">
-
           <div className="text-center text-gray-500">
-
             <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-400" />
 
             <h2 className="text-2xl font-bold mb-2">PantherKolab Messages</h2>
 
             <p className="text-lg">Select a conversation to start messaging</p>
-
           </div>
-
         </div>
-
       );
-
     }
 
-
-
     return (
-
       <div className="flex-1 flex flex-col bg-gray-50">
-
         {/* Chat Header */}
 
         <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between">
-
           <div className="flex items-center gap-4">
-
             {/* Avatar (larger + rounded square) */}
 
             <button
-
               onClick={() => {
-
                 if (selectedConversation.type === "DM") {
-
                   // For DMs, find the other user's ID and use onUserClick for consistent toggle behavior
 
                   const otherUserId = selectedConversation.participants.find(
-
                     (id) => id !== loggedInUserId
-
                   );
 
                   if (otherUserId && onUserClick) {
-
                     onUserClick(otherUserId);
-
-                  }
-
-                  else {
-
+                  } else {
                     onToggleProfile();
-
                   }
-
                 }
-
               }}
-
               className="relative flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
-
             >
-
               {selectedConversation.type === "GROUP" ? (
-
                 <div className="w-14 h-14 rounded-lg bg-[#0066CC] flex items-center justify-center">
-
                   <span className="text-white font-bold text-lg tracking-wide">
-
                     {selectedConversation.name?.substring(0, 3).toUpperCase() ||
-
                       "GRP"}
-
                   </span>
-
                 </div>
-
               ) : (
-
                 <div className="w-12 h-12 rounded-lg bg-[#FFB300] flex items-center justify-center">
-
                   <span className="text-gray-900 font-bold text-lg">
-
                     {selectedConversation.name?.substring(0, 2).toUpperCase() ||
-
                       "DM"}
-
                   </span>
-
                 </div>
-
               )}
-
             </button>
-
-
 
             {/* Group name + members */}
 
             <button
-
               onClick={() => {
-
                 if (selectedConversation?.type === "DM") {
-
                   // For DMs, find the other user's ID and use onUserClick for consistent toggle behavior
 
                   const otherUserId = selectedConversation.participants.find(
-
                     (id) => id !== loggedInUserId
-
                   );
 
                   if (otherUserId && onUserClick) {
-
                     onUserClick(otherUserId);
-
-                  }
-
-                  else {
-
+                  } else {
                     onToggleProfile();
-
                   }
-
                 }
-
               }}
-
               className="flex flex-col text-left hover:opacity-80 transition-opacity cursor-pointer"
-
             >
-
               <h2 className="font-bold text-gray-900 text-xl leading-tight capitalize">
-
                 {selectedConversation.name || "Conversation"}
-
               </h2>
 
-
-
               {selectedConversation.type === "GROUP" &&
-
                 selectedConversation.participants && (
-
                   <p className="text-sm text-gray-500 mt-1">
-
                     {selectedConversation.participants.length} members
-
                   </p>
-
                 )}
-
             </button>
-
           </div>
-
-
 
           {/* Icons */}
 
           <div className="flex items-center gap-3">
-
             <button
-
-              onClick={onCreateWhiteboard}
-
+              onClick={async () => {
+                const whiteBoardId = await onCreateWhiteboard("New Whiteboard");
+                if (whiteBoardId) router.push(`/whiteboard/${whiteBoardId}`);
+              }}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-
               title="Open whiteboard"
-
             >
-
               <FileText className="w-6 h-6 text-gray-600" />
-
             </button>
 
             <button
-
               onClick={handleCallClick}
-
               className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-
               title="Start call"
-
             >
-
               <Phone className="w-6 h-6 text-gray-600" />
-
             </button>
 
             <button
-
               onClick={handleSearchClick}
-
               className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-
               title="Search in conversation"
-
             >
-
               <Search className="w-6 h-6 text-gray-600" />
-
             </button>
 
             <button
-
               onClick={handleMoreClick}
-
               className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-
               title="More options"
-
             >
-
               <MoreVertical className="w-6 h-6 text-gray-600" />
-
             </button>
-
           </div>
-
         </div>
 
         {/* AI Summary Button */}

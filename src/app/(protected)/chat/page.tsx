@@ -70,14 +70,21 @@ export default function ChatPage() {
     isMeetingActive,
     meetingData,
     setShowOutgoingCall,
+
+    //whiteboard
+    handleCreateWhiteboard,
   } = useChat(currentUserId);
 
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [showCurrentUserProfile, setShowCurrentUserProfile] = useState(false);
-  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<
+    string | null
+  >(null);
 
   // Get profile data for the selected user (or the other user in DM)
-  const profileUserId = selectedProfileUserId || getOtherUserIdInDM(selectedConversation, currentUserId);
+  const profileUserId =
+    selectedProfileUserId ||
+    getOtherUserIdInDM(selectedConversation, currentUserId);
   const profileData = profileUserId
     ? getProfileData(profileUserId, selectedConversation, currentUserId)
     : null;
@@ -199,18 +206,21 @@ export default function ChatPage() {
 
   // Handle clicking on a user's avatar or name in the chat
   // Toggle behavior: clicking the same user twice closes the profile
-  const handleUserClick = useCallback((userId: string) => {
-    setSelectedProfileUserId((prevUserId) => {
-      // If clicking the same user, toggle off
-      if (prevUserId === userId && showProfile) {
-        setShowProfile(false);
-        return null;
-      }
-      // If clicking a different user, show their profile
-      setShowProfile(true);
-      return userId;
-    });
-  }, [showProfile, setShowProfile]);
+  const handleUserClick = useCallback(
+    (userId: string) => {
+      setSelectedProfileUserId((prevUserId) => {
+        // If clicking the same user, toggle off
+        if (prevUserId === userId && showProfile) {
+          setShowProfile(false);
+          return null;
+        }
+        // If clicking a different user, show their profile
+        setShowProfile(true);
+        return userId;
+      });
+    },
+    [showProfile, setShowProfile]
+  );
 
   // Handle closing the profile sidebar
   const handleCloseProfile = useCallback(() => {
@@ -336,6 +346,7 @@ export default function ChatPage() {
           isLoading={loadingMessages}
           error={messagesError?.message}
           onCallClick={handleCallButtonClick}
+          onCreateWhiteboard={(name: string) => handleCreateWhiteboard(name)}
         />
       ) : activeCall ? ( // Meeting View
         <MeetingView

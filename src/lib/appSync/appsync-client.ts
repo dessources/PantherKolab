@@ -9,7 +9,7 @@
 "use client";
 
 import { events } from "aws-amplify/api";
-import { AppSyncEvent } from "@/types/appsync-events";
+import { AppSyncEvent, WhiteboardEvent } from "@/types/appsync-events";
 
 // ============================================================================
 // Subscriptions (using Amplify events module)
@@ -63,13 +63,15 @@ export async function subscribeToChannel<T = unknown>(
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" && console.log(`[AppSync] Subscribed to ${channelPath}`);
+    process.env.NODE_ENV !== "production" &&
+      console.log(`[AppSync] Subscribed to ${channelPath}`);
 
     return {
       close: () => {
         channel.close();
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        process.env.NODE_ENV !== "production" && console.log(`[AppSync] Unsubscribed from ${channelPath}`);
+        process.env.NODE_ENV !== "production" &&
+          console.log(`[AppSync] Unsubscribed from ${channelPath}`);
       },
     };
   } catch (error) {
@@ -154,7 +156,7 @@ export async function subscribeToUserCalls(
  */
 export async function subscribeToUserWhiteboards(
   userId: string,
-  onEvent: (event: AppSyncEvent) => void,
+  onEvent: (event: AppSyncEvent<WhiteboardEvent>) => void,
   onError?: (error: Error) => void
 ): Promise<{ close: () => void }> {
   return subscribeToChannel(`/whiteboards/${userId}`, {

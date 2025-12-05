@@ -1,23 +1,49 @@
 "use client";
 
 import { useEditor } from "tldraw";
+
 import { useState } from "react";
+
 import { logDebug } from "@/lib/utils";
-import jsPDF from 'jspdf';
+
+import jsPDF from "jspdf";
+
+import { toast } from "sonner";
 
 interface ExportDialogProps {
   whiteboardId: string;
+
   onClose: () => void;
 }
 
 // Helper to trigger file download in the browser
+
 function downloadDataUrl(dataUrl: string, filename: string) {
   const link = document.createElement("a");
+
   link.href = dataUrl;
+
   link.download = filename;
+
   document.body.appendChild(link);
+
   link.click();
+
   document.body.removeChild(link);
+}
+
+// Helper to convert a blob to a data URL
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => resolve(reader.result as string);
+
+    reader.onerror = reject;
+
+    reader.readAsDataURL(blob);
+  });
 }
 
 export function ExportDialog({ whiteboardId, onClose }: ExportDialogProps) {
@@ -28,83 +54,68 @@ export function ExportDialog({ whiteboardId, onClose }: ExportDialogProps) {
   const handleExport = async (format: "svg" | "png" | "pdf") => {
     if (!editor) return;
 
+    const shapeIds = Array.from(editor.getCurrentPageShapeIds());
+    if (shapeIds.length === 0) {
+      toast.error("There's nothing on the canvas to export.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      const svg = await editor.getSvg({
-        scale: 1,
-        background: true,
-        padding: 32,
-      });
-
-      if (!svg) {
-        throw new Error("Failed to generate SVG from whiteboard content.");
-      }
-
       let dataUrl: string;
-      const mimeType = format === 'svg' ? 'image/svg+xml' : (format === 'png' ? 'image/png' : 'application/pdf');
       const filename = `whiteboard-export-${whiteboardId}.${format}`;
 
-      if (format === "svg") {
-        const blob = new Blob([svg.outerHTML], { type: mimeType });
-        dataUrl = URL.createObjectURL(blob);
-        downloadDataUrl(dataUrl, filename); // SVG can be downloaded directly
-        URL.revokeObjectURL(dataUrl);
+      if (format === "png") {
+        const blob = await editor.toImage(shapeIds, {
+          format: "png",
+          scale: 2, // Higher resolution
+          background: true,
+          padding: 32,
+        });
+        if (!blob) throw new Error("Failed to generate PNG.");
+        dataUrl = await blobToDataUrl(blob.blob);
+        downloadDataUrl(dataUrl, filename);
+      } else {
+        // For SVG and PDF, we start with the SVG
+        const blob = await editor.toImage(shapeIds, {
+          format: "svg",
+          background: true,
+          padding: 32,
+        });
+        if (!blob) throw new Error("Failed to generate SVG.");
 
-      } else if (format === "png") {
-        const image = new Image();
-        const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
-        
-        await new Promise<void>((resolve, reject) => {
-            image.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = image.width;
-                canvas.height = image.height;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error("Failed to get canvas context"));
-                    return;
-                }
-                ctx.drawImage(image, 0, 0);
-                dataUrl = canvas.toDataURL('image/png');
-                URL.revokeObjectURL(url);
-                resolve();
-            };
-            image.onerror = (err) => {
-                URL.revokeObjectURL(url);
-                reject(err);
-            };
-            image.src = url;
-        });
+        const svgString = await blob.blob.text();
+        const svgElement = new DOMParser().parseFromString(
+          svgString,
+          "image/svg+xml"
+        ).documentElement;
 
-      } else if (format === 'pdf') {
-        const doc = new jsPDF({
-          orientation: 'landscape',
-          unit: 'px',
-          format: [svg.width.baseVal.value, svg.height.baseVal.value]
-        });
-        doc.html(svg.outerHTML, {
-          callback: function (doc) {
-            dataUrl = doc.output('datauristring');
-          },
-          x: 0,
-          y: 0,
-          width: svg.width.baseVal.value,
-          height: svg.height.baseVal.value,
-        });
+        if (format === "svg") {
+          dataUrl = await blobToDataUrl(blob.blob);
+          downloadDataUrl(dataUrl, filename);
+        } else {
+          // PDF
+          const doc = new jsPDF({
+            orientation: "landscape",
+            unit: "px",
+            format: [svgElement.clientWidth, svgElement.clientHeight],
+          });
+          await doc.html(svgElement);
+          dataUrl = doc.output("datauristring");
+          downloadDataUrl(dataUrl, filename);
+        }
       }
 
-      // @ts-ignore
-      if (format !== 'svg') {
+      // Upload to S3 (excluding direct SVG download)
+      if (format !== "svg") {
         const response = await fetch("/api/whiteboards/export", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             whiteboardId,
             format,
-            // @ts-ignore
             dataUrl,
           }),
         });
@@ -115,22 +126,20 @@ export function ExportDialog({ whiteboardId, onClose }: ExportDialogProps) {
 
         const result = await response.json();
         logDebug("Export uploaded to S3:", result.url);
-        // We could use the S3 url, but for simplicity, we'll download the locally generated dataUrl
-        // @ts-ignore
-        downloadDataUrl(dataUrl, filename);
       }
 
       onClose();
-
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "An unknown error occurred during export.";
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : "An unknown error occurred during export.";
       setError(errorMsg);
       console.error("Export failed:", err);
     } finally {
       setIsLoading(false);
     }
   };
-  
 
   return (
     <div style={styles.overlay}>
@@ -148,7 +157,11 @@ export function ExportDialog({ whiteboardId, onClose }: ExportDialogProps) {
             {isLoading ? "Exporting..." : "Export to PDF"}
           </button>
         </div>
-        <button onClick={onClose} style={{ marginTop: "1rem" }} disabled={isLoading}>
+        <button
+          onClick={onClose}
+          style={{ marginTop: "1rem" }}
+          disabled={isLoading}
+        >
           Cancel
         </button>
       </div>
