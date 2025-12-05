@@ -58,12 +58,15 @@ export default function WhiteboardPage() {
     return <div>Whiteboard not found or user not authenticated.</div>;
   }
 
+  const isReadOnly = whiteboard.createdBy !== authUser.userId;
+
   return (
     <>
       <WhiteboardCanvas
         whiteboardId={whiteboardId}
-        currentUserId={authUser.userId} // Assuming username is the ID
+        currentUserId={authUser.userId}
         initialSnapshot={whiteboard.snapshot || undefined}
+        isReadOnly={isReadOnly}
       >
         {showExportDialog && (
           <ExportDialog

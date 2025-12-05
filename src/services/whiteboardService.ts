@@ -13,6 +13,7 @@ import {
   type CreateWhiteboardInput,
 } from "@/types/database";
 import { logDebug } from "@/lib/utils";
+import { conversationService } from "./conversationService";
 
 export const whiteboardService = {
   /**
@@ -20,6 +21,12 @@ export const whiteboardService = {
    */
   async createWhiteboard(input: CreateWhiteboardInput): Promise<Whiteboard> {
     const now = new Date().toISOString();
+
+    // Fetch conversation to get all participants
+    const conversation = await conversationService.getConversation(input.conversationId);
+    if (!conversation) {
+      throw new Error(`Conversation with ID ${input.conversationId} not found.`);
+    }
 
     const whiteboard: Whiteboard = {
       whiteboardId: crypto.randomUUID(),
@@ -30,7 +37,7 @@ export const whiteboardService = {
       updatedAt: now,
       snapshot: null, // Initial state is empty
       isActive: true,
-      participants: [input.createdBy], // Creator is first participant
+      participants: conversation.participants, // Use all participants from the conversation
     };
 
     const logWhiteboard = { ...whiteboard };
@@ -46,9 +53,7 @@ export const whiteboardService = {
       })
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    process.env.NODE_ENV !== "production" &&
-      console.log("Whiteboard successfully saved to DynamoDB");
+    logDebug("Whiteboard successfully saved to DynamoDB");
 
     return whiteboard;
   },

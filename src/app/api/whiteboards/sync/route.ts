@@ -37,15 +37,23 @@ export async function POST(request: NextRequest) {
 
     if (!whiteboard.participants.includes(authUser.userId)) {
       return NextResponse.json(
-        { success: false, error: "Forbidden" },
+        { success: false, error: "Forbidden: Not a participant" },
         { status: 403 }
       );
     }
 
-    // 4. Update the snapshot in DynamoDB
+    // 4. NEW: Verify user is the owner before allowing changes
+    if (whiteboard.createdBy !== authUser.userId) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden: Only the owner can make changes" },
+        { status: 403 }
+      );
+    }
+
+    // 5. Update the snapshot in DynamoDB
     await whiteboardService.updateWhiteboardSnapshot(whiteboardId, snapshot);
 
-    // 5. Publish the change to all other participants via AppSync
+    // 6. Publish the change to all other participants via AppSync
     const participantsToNotify = whiteboard.participants.filter(
       (p) => p !== authUser.userId
     );

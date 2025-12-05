@@ -161,7 +161,7 @@ export function useWhiteboard({
         console.error("Error syncing whiteboard:", err);
         // Optionally set an error state to show in the UI
       }
-    }, 2000); // Debounce interval of 2 seconds
+    }, 200); // Debounce interval of 2 seconds
   }, []);
 
   return { isConnected, activeUsers, syncChanges };
